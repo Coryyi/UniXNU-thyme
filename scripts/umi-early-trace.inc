@@ -30,7 +30,7 @@
 	   inherited splash framebuffer. Pre-MMU callers store physically
 	   (dcache off); post-MMU callers rely on the uncached framebuffer
 	   block mapped next to the console mapping in start.s. */
-	mov	x14, #0x9C40, lsl #16
+	movz	x14, #0x9C40, lsl #16
 	add	x14, x14, x9, lsl #19
 	orr	x15, xzr, x9
 	orr	x15, x15, x15, lsl #8
