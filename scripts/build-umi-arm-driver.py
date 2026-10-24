@@ -59,6 +59,8 @@ while index < len(arguments):
 command.extend([
     "-Wall", "-Wextra", "-Werror", "-Wno-unused-parameter", "-Wno-c99-designator",
     "-Wno-reorder-init-list", "-Wno-deprecated-enum-enum-conversion",
+    # Xcode 26 clang flags the SDK's own OSSymbol.h final-class virtuals.
+    "-Wno-unnecessary-virtual-specifier", "-Wno-suggest-override",
     "-I", str(ROOT / ".cache/xnu-work/osfmk"),
 ])
 if args.gic_diagnostics:
