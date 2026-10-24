@@ -84,7 +84,10 @@ if args.namespace:
     plain = OUT / 'libcorecrypto_kernel_noasm.a'
     if not plain.is_file():
         raise SystemExit('Build the plain provider once before creating its namespace')
-    collisions = sorted(names(plain, '-U') & names(kernel, '-U'))
+    kernel_side = names(kernel, '-U') if kernel.exists() else set()
+    if not kernel.exists():
+        print('namespace collision survey skipped: kernel binary not built yet (bootstrap order)')
+    collisions = sorted(names(plain, '-U') & kernel_side)
     if any(not name[1:].isidentifier() for name in collisions):
         raise SystemExit('A colliding symbol cannot be namespaced with a C identifier')
     header = OUT / 'namespace.h'
