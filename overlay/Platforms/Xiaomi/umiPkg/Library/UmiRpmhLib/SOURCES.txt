@@ -1,0 +1,96 @@
+UmiRpmhLib: independent BSD-2-Clause-Patent implementation, no vendor blob.
+
+This experiment sends only an ACTIVE enable request for the exact padded
+cmd-db key ldoc1 on this handset's APPS RSC DRV2. It has no arbitrary address
+or voltage/mode API. The caller first requires PMIC model27, LDO type04,
+observed subtype71, an existing 1800mV setting and aggregate software-enable0.
+Already-ready inherited supplies do not acquire an RPMh request.
+
+Linux hardware/protocol references, fixed commit:
+https://github.com/LineageOS/android_kernel_xiaomi_sm8250/tree/71b13e62f057a649b77fe4062feb73ee72ad609c
+The reference implementations are GPL-2.0. None is embedded in this library.
+Downloaded references, complete source URLs and SHA-256 digests:
+<local-workspace>/out/umi/research/rpmh-static-20261020/sources.json
+
+drivers/soc/qcom/rpmh-rsc.c SHA256
+b37f390dbe93903c4a7884e605b76b507134c09d33a147d0c34648f1efd83cc0
+  TCS stride672(0x2a0), command stride20(0x14); register offsets;
+  __tcs_buffer_write MSGID length8|WRITE16|RESP_REQ8;
+  tcs_tx_done checks issued8 and complete16, then reclaims even on error;
+  __tcs_set_trigger requires separate ordered trigger24-clear/readback,
+  mode16-clear/readback, mode16-enable/readback, then trigger24-set.
+  rpmh_probe_tcs_config decodes DRV capability fields and ordered groups.
+drivers/soc/qcom/rpmh.c SHA256
+a6921d6e2f2a13aef6206228c8b2703c852f163171c15576c4a82411e85f75ed
+  ACTIVE requests are sent immediately; SLEEP/WAKE are separately cached.
+drivers/soc/qcom/cmd-db.c SHA256
+f4bbcf3975b96dd244af028fe92b57dd83d1f52e7a735b740c383d70e79d8c7a
+  Header.data begins at0x90,8 group headers of16bytes,24byte entries;
+  address at entry+16; VRM accelerator type4 encoded in addr[18:16].
+include/dt-bindings/soc/qcom,rpmh-rsc.h defines ACTIVE2/SLEEP0/WAKE1/CONTROL3.
+drivers/regulator/rpmh-regulator.c in the same pinned kernel:
+  index1 enable => cmd-db base+4; enable data1, disable data0;
+  power increases request synchronous completion. Voltage/mode are distinct.
+  SHA e24f271ce7627f1212dc2808ad7c217cc80aac61aa12547b268b4985b19f821c
+
+Handset liveDT:
+out/device/umi/20261020T040435517245Z/running.dts:32467
+  APPS DRV2 base18220000, tcs-offsetd00; ordered groups ACTIVE2,SLEEP3,
+  WAKE3,CONTROL1. Thus only ACTIVE TCS0/1 are eligible here.
+  cmd-db reserved80860000/20000; existing MemoryMapLib preserves/maps it.
+  RSC is covered by the existing APSS_HM device mapping.
+
+Original shipped binary corroboration (static, not execution):
+CmdDbDxe SHA60957d12079f756f60e6b16db921c9efce2614bf05e17fd08b6b59a2a130469f
+  RVA45a0 reads database pointer0c3f000c;2508 requires version1/magic0c0330db;
+  1f00 uses the same header/entry layout. Library additionally bounds every
+  group within the DT-reserved region, rejects standalone and requires one
+  exact key with VRM type4. No ldoc1 numeric address is guessed/hardcoded.
+RpmhDxe map at e228 identifies DRV2; e1f0/e1f4 give8TCS/16commands;
+  setup7c6c/completion79dc/trigger6c60/idle6e34 corroborate registers.
+  Library also verifies live hardware capability fields8/16 before writes.
+REA exports preserved by main investigation:
+<local-workspace>/out/umi/research/rpmh-static-20261020/rpmh-snapshot.json
+<local-workspace>/out/umi/research/rpmh-static-20261020/cmd-db-snapshot.json
+
+Ownership, completion and cleanup contract:
+- Both ACTIVE0/1 must be idle and have no pending IRQ. Chosen slot must have
+  CMD_ENABLE=0,WAIT=0 and no CONTROL bits other than AMC mode16/trigger24.
+  Attempt13 observed both CONTROL=0 with idle/empty slots, so attempt14
+  initializes AMC mode using the hardware sequence above. Other modes reject.
+- Snapshot only the selected slot's modified command0/WAIT/CONTROL and its
+  IRQ-enable bit. No SLEEP/WAKE/control TCS, ownership or PMIC register writes.
+- Clear any old trigger24 and then mode16 before installing a command. Enable only our IRQ
+  bit, submit length8|WRITE|RESP_REQ, wait-for-completion1 and command-enable1,
+  then enable mode16 with readback before triggering. CPU IRQ state is
+  saved/disabled throughout each bounded call.
+- Fresh own IRQ plus idle is terminal. issued8+complete16 also required for
+  success. An idle/error completion clears inflight, returns DEVICE_ERROR,
+  and retains the possibly-effective enable marker; later cleanup can retry.
+- One20ms budget per public transaction; MMIO writes have readback checks.
+  An error masks only our TCS IRQ within a separate1ms bound before restoring
+  CPU IRQ state. Mask failure is logged; no busy command is overwritten.
+- Busy/unconfirmed timeout retains inflight and the original snapshot.
+  Subsequent cleanup waits for terminal idle+IRQ before touching the slot.
+  Even idle+old CMD_STATUS success without fresh IRQ cannot prove completion.
+- Completed/untriggered idle slots restore command0/WAIT, clear CMD_ENABLE,
+  and restore CONTROL with trigger24 forced clear. Old triggers are NEVER
+  replayed. IRQ_CLEAR is W1C for our bit only; IRQ_ENABLE restoration changes
+  only our bit. Failed restoration remains outstanding and retryable.
+- Command register restoration does not retract resource state. Cleanup sends
+  ldoc1 enable data0, retracting our current DRV2 request. Other DRVs aggregate
+  independently. This DOES NOT reconstruct an unknown inherited DRV2 vote.
+  Physical aggregate-enable0 is an experiment guard, not a read of that vote.
+- No runtime sleep/wake/solver support or third-party DRV2 concurrent client
+  arbitration is implemented. Busy/pending/unsupported states are rejected.
+
+Host validation on macOS arm64:
+python3 TestUmiRpmh.py
+Includes actual UmiRpmh.c; mocks only MMIO, timing and CPU interrupt state.
+ASan/UBSan with halt-on-error cover invalid DB/base/bounds/accelerator;
+another ACTIVE busy/pending; write address/IRQ-bit confinement; inherited
+trigger1 without replay; initial CONTROL=0, ordered mode/trigger writes and
+failed mode-enable readback; enable1/withdraw0; busy timeout, late completion;
+idle without freshIRQ; terminal error completion; failed disable retry;
+readback failure before issue and during restore; deadline exactly before
+trigger (must not fabricate inflight). Tests do not prove hardware execution.

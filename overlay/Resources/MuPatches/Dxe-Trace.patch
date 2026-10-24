@@ -1,0 +1,12 @@
+--- a/MdeModulePkg/Core/Dxe/Dispatcher/Dispatcher.c
++++ b/MdeModulePkg/Core/Dxe/Dispatcher/Dispatcher.c
+@@ -517,7 +517,9 @@
+           );
+         ASSERT (DriverEntry->ImageHandle != NULL);
+ 
++        DEBUG ((DEBUG_ERROR, "UMI DXE start %g\n", &DriverEntry->FileName));
+         Status = CoreStartImage (DriverEntry->ImageHandle, NULL, NULL);
++        DEBUG ((DEBUG_ERROR, "UMI DXE done %g status %r\n", &DriverEntry->FileName, Status));
+ 
+         REPORT_STATUS_CODE_WITH_EXTENDED_DATA (
+           EFI_PROGRESS_CODE,

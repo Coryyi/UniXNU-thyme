@@ -1,0 +1,11 @@
+diff --git a/BaseTools/BinWrappers/PosixLike/GenericShellWrapper b/BaseTools/BinWrappers/PosixLike/GenericShellWrapper
+--- a/BaseTools/BinWrappers/PosixLike/GenericShellWrapper
++++ b/BaseTools/BinWrappers/PosixLike/GenericShellWrapper
+@@ -1,6 +1,6 @@
+ #!/usr/bin/env bash
+ 
+-full_cmd=${BASH_SOURCE[-1]:-$0} # see http://mywiki.wooledge.org/BashFAQ/028 for a discussion of why $0 is not a good choice here
++full_cmd=${BASH_SOURCE[${#BASH_SOURCE[@]}-1]:-$0} # Support macOS /bin/bash 3.2 without negative array indices.
+ dir=$(dirname "$full_cmd")
+ cmd=${full_cmd##*/}
+ 

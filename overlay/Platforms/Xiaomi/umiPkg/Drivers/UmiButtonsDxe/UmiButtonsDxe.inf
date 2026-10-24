@@ -1,0 +1,35 @@
+## @file
+# SPDX-License-Identifier: BSD-2-Clause-Patent
+##
+[Defines]
+  INF_VERSION = 0x00010005
+  BASE_NAME = UmiButtonsDxe
+  FILE_GUID = 8C73478B-75C4-49E1-92F8-BF9CC6F1D604
+  MODULE_TYPE = DXE_DRIVER
+  VERSION_STRING = 0.1
+  ENTRY_POINT = UmiButtonsEntry
+
+[Sources]
+  UmiButtons.c
+  KeyFilter.h
+
+[Packages]
+  MdePkg/MdePkg.dec
+  SiliciumPkg/SiliciumPkg.dec
+
+[LibraryClasses]
+  UefiDriverEntryPoint
+  UefiBootServicesTableLib
+  DebugLib
+  IoLib
+  TimerLib
+
+[Protocols]
+  gEfiSimpleTextInProtocolGuid
+  gEfiDevicePathProtocolGuid
+
+[Guids]
+  gEfiEventExitBootServicesGuid
+
+[Depex]
+  TRUE

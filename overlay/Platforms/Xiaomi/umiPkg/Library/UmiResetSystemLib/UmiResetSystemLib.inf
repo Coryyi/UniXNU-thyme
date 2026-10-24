@@ -1,0 +1,28 @@
+## @file
+# umi primary PON / Qualcomm PS_HOLD reset with bring-up diagnostics.
+# SPDX-License-Identifier: BSD-2-Clause-Patent
+##
+[Defines]
+  INF_VERSION = 0x0001001B
+  BASE_NAME = UmiResetSystemLib
+  FILE_GUID = 519F1EA7-D4E1-45EC-8182-82959251633D
+  MODULE_TYPE = DXE_RUNTIME_DRIVER
+  VERSION_STRING = 1.0
+  LIBRARY_CLASS = ResetSystemLib
+
+[Sources]
+  UmiResetSystem.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+  ArmPkg/ArmPkg.dec
+  umiPkg/umi.dec
+
+[LibraryClasses]
+  ArmSmcLib
+  BaseLib
+  BaseMemoryLib
+  DebugLib
+  IoLib
+  TimerLib
+  UmiSpmiLib

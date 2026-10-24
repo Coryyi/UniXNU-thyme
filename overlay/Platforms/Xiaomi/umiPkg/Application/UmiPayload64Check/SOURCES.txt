@@ -1,0 +1,12 @@
+PayloadSha256.c derives from the MIT-licensed UniXNU implementation:
+https://github.com/UniXNU/UniXNU/blob/7b52e7968c76453cdc18b5aa174fc368d5293b91/drivers/NativeAdreno/NativeAdrenoSha256.cpp
+Source SHA256 ee624a483a075b8ca44f1dff2efd66acee38c5ccd784192c23614cdb6605db1f
+C syntax/type/ZeroMem/CopyMem adaptation only. This checksum diagnostic does
+not implement a signature trust policy. Host tests compare the exact source
+against hashlib including padding boundaries and the full 64 MiB image.
+
+The application is external on FAT32, never in the firmware FV. It reads
+every block of the 64 MiB volume, a complete 60 MiB fixture, checks SHA256
+and EOF, and checks seeks across 16 MiB, 32 MiB and file end. No persistent
+write or XNU entry is performed. Whole-volume digest is verified by host
+against the archived image; file digest is checked inside the application.

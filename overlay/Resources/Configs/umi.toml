@@ -1,0 +1,17 @@
+[status]
+model_count = 1
+
+[boot_shim]
+requires_kernel_header = true
+
+# Matched to the uefiplat.cfg extracted from this phone's xbl_5.
+[uefi_fd]
+base = 0x9fc00000
+size = 0x300000
+
+[boot_image_kernel]
+kernel_compression = "gzip"
+append_dtb = true
+
+[boot_image]
+header_version = 1

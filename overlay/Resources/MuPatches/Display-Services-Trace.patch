@@ -1,0 +1,408 @@
+--- a/MdeModulePkg/Core/Dxe/Dispatcher/Dispatcher.c
++++ b/MdeModulePkg/Core/Dxe/Dispatcher/Dispatcher.c
+@@ -32,6 +32,395 @@
+ **/
+ 
+ #include "DxeMain.h"
++
++// umi diagnostics: temporary, single-core DisplayDxe entry only.
++// DEBUG uses the allocation-free RAM console; wrappers must not log data values.
++STATIC EFI_BOOT_SERVICES     mUmiOriginalBS;
++STATIC EFI_RUNTIME_SERVICES  mUmiOriginalRT;
++STATIC EFI_DXE_SERVICES      mUmiOriginalDS;
++STATIC UINTN                mUmiTraceSequence;
++STATIC UINTN                mUmiStallCount;
++STATIC UINTN                mUmiDisplayImageBase;
++STATIC UINTN                mUmiDsiPollCount;
++STATIC BOOLEAN              mUmiTraceActive;
++STATIC EFI_GUID mUmiDisplayGuid =
++  { 0x4138022f, 0x06c7, 0x4f79, { 0x9c, 0x94, 0x7e, 0x33, 0xb5, 0x11, 0xa4, 0xe7 } };
++
++// Read-only observations for the pinned, hash-verified umi DisplayDxe.
++// RVA 0x467d0 is its MDSS virtual base returned by HWIO; do not assume identity
++// mapping or touch the controller until its own DSI polling code is running.
++// Controller 0 register offsets match the device kernel dsi_ctrl_reg.h.
++STATIC VOID
++UmiDsiSnapshot (CONST CHAR8 *Stage)
++{
++  STATIC CONST UINT16 Offsets[] = {
++    0x000, 0x004, 0x008, 0x00C, 0x03C, 0x040, 0x048, 0x04C,
++    0x068, 0x084, 0x0A8, 0x0AC, 0x0B4, 0x0C0,
++    0x10C, 0x110, 0x118, 0x11C, 0x120, 0x15C, 0x1F4
++  };
++  UINTN Base, Index;
++  if ((mUmiDisplayImageBase == 0) || (mUmiDsiPollCount == 0)) {
++    return;
++  }
++  Base = *(volatile UINTN *)(mUmiDisplayImageBase + 0x467D0);
++  DEBUG ((DEBUG_ERROR, "UMI DSI %a polls=%u MDSS=%p\n",
++          Stage, (UINT32)mUmiDsiPollCount, (VOID *)Base));
++  if ((Base == 0) || ((Base & 0xFFF) != 0) || (Base > MAX_UINTN - 0x95000)) {
++    return;
++  }
++  for (Index = 0; Index < ARRAY_SIZE (Offsets); Index++) {
++    DEBUG ((DEBUG_ERROR, "UMI DSI0 reg=%03x value=%08x\n", (UINT32)Offsets[Index],
++            *(volatile UINT32 *)(Base + 0x94000 + Offsets[Index])));
++  }
++}
++
++STATIC EFI_STATUS EFIAPI
++UmiTraceLocateProtocol (EFI_GUID *Protocol, VOID *Registration, VOID **Interface)
++{
++  EFI_STATUS Status;
++  UINTN Sequence;
++  BOOLEAN Log;
++  Sequence = ++mUmiTraceSequence;
++  Log = TRUE;
++  if (Log) {
++    DEBUG ((DEBUG_ERROR, "UMI svc %u LocateProtocol enter caller=%p guid=%g\n",
++            (UINT32)Sequence, __builtin_return_address (0), Protocol));
++  }
++  Status = mUmiOriginalBS.LocateProtocol (Protocol, Registration, Interface);
++  if (Log) {
++    DEBUG ((DEBUG_ERROR, "UMI svc %u LocateProtocol exit %r\n", (UINT32)Sequence, Status));
++  }
++  return Status;
++}
++
++STATIC EFI_STATUS EFIAPI
++UmiTraceHandleProtocol (EFI_HANDLE Handle, EFI_GUID *Protocol, VOID **Interface)
++{
++  EFI_STATUS Status;
++  UINTN Sequence;
++  BOOLEAN Log;
++  Sequence = ++mUmiTraceSequence;
++  Log = TRUE;
++  if (Log) {
++    DEBUG ((DEBUG_ERROR, "UMI svc %u HandleProtocol enter caller=%p guid=%g\n",
++            (UINT32)Sequence, __builtin_return_address (0), Protocol));
++  }
++  Status = mUmiOriginalBS.HandleProtocol (Handle, Protocol, Interface);
++  if (Log) {
++    DEBUG ((DEBUG_ERROR, "UMI svc %u HandleProtocol exit %r\n", (UINT32)Sequence, Status));
++  }
++  return Status;
++}
++
++STATIC EFI_STATUS EFIAPI
++UmiTraceLocateHandleBuffer (EFI_LOCATE_SEARCH_TYPE SearchType, EFI_GUID *Protocol, VOID *SearchKey, UINTN *NumberHandles, EFI_HANDLE **Buffer)
++{
++  EFI_STATUS Status;
++  UINTN Sequence;
++  BOOLEAN Log;
++  Sequence = ++mUmiTraceSequence;
++  Log = TRUE;
++  if (Log) {
++    DEBUG ((DEBUG_ERROR, "UMI svc %u LocateHandleBuffer enter caller=%p type=%u guid=%g\n",
++            (UINT32)Sequence, __builtin_return_address (0), SearchType, Protocol));
++  }
++  Status = mUmiOriginalBS.LocateHandleBuffer (SearchType, Protocol, SearchKey, NumberHandles, Buffer);
++  if (Log) {
++    DEBUG ((DEBUG_ERROR, "UMI svc %u LocateHandleBuffer exit %r\n", (UINT32)Sequence, Status));
++  }
++  return Status;
++}
++
++STATIC EFI_STATUS EFIAPI
++UmiTraceAllocatePool (EFI_MEMORY_TYPE PoolType, UINTN Size, VOID **Buffer)
++{
++  EFI_STATUS Status;
++  UINTN Sequence;
++  BOOLEAN Log;
++  Sequence = ++mUmiTraceSequence;
++  Log = TRUE;
++  if (Log) {
++    DEBUG ((DEBUG_ERROR, "UMI svc %u AllocatePool enter caller=%p bytes=0x%lx\n",
++            (UINT32)Sequence, __builtin_return_address (0), (UINT64)Size));
++  }
++  Status = mUmiOriginalBS.AllocatePool (PoolType, Size, Buffer);
++  if (Log) {
++    DEBUG ((DEBUG_ERROR, "UMI svc %u AllocatePool exit %r\n", (UINT32)Sequence, Status));
++  }
++  return Status;
++}
++
++STATIC EFI_STATUS EFIAPI
++UmiTraceFreePool (VOID *Buffer)
++{
++  EFI_STATUS Status;
++  UINTN Sequence;
++  BOOLEAN Log;
++  Sequence = ++mUmiTraceSequence;
++  Log = TRUE;
++  if (Log) {
++    DEBUG ((DEBUG_ERROR, "UMI svc %u FreePool enter caller=%p buffer=%p\n",
++            (UINT32)Sequence, __builtin_return_address (0), Buffer));
++  }
++  Status = mUmiOriginalBS.FreePool (Buffer);
++  if (Log) {
++    DEBUG ((DEBUG_ERROR, "UMI svc %u FreePool exit %r\n", (UINT32)Sequence, Status));
++  }
++  return Status;
++}
++
++STATIC EFI_STATUS EFIAPI
++UmiTraceStall (UINTN Microseconds)
++{
++  EFI_STATUS Status;
++  UINTN Sequence;
++  BOOLEAN Log;
++  UINTN Caller;
++  UINT64 Before, After, Frequency;
++  BOOLEAN PollSample;
++  Caller = (UINTN)__builtin_return_address (0);
++  PollSample = FALSE;
++  Before = 0;
++  if ((mUmiDisplayImageBase != 0) && (Caller == mUmiDisplayImageBase + 0x10960)) {
++    ++mUmiDsiPollCount;
++    PollSample = (mUmiDsiPollCount == 1) ||
++                 ((mUmiDsiPollCount <= 996) && ((mUmiDsiPollCount % 166) == 0));
++    if (PollSample) {
++      UmiDsiSnapshot ("poll-before-stall");
++      __asm__ volatile ("mrs %0, cntvct_el0" : "=r" (Before));
++    }
++  }
++  Sequence = ++mUmiTraceSequence;
++  Log = (++mUmiStallCount <= 16) || (Microseconds >= 100000);
++  if (Log) {
++    DEBUG ((DEBUG_ERROR, "UMI svc %u Stall enter caller=%p us=%lu\n",
++            (UINT32)Sequence, __builtin_return_address (0), (UINT64)Microseconds));
++  }
++  Status = mUmiOriginalBS.Stall (Microseconds);
++  if (PollSample) {
++    __asm__ volatile ("mrs %0, cntvct_el0" : "=r" (After));
++    __asm__ volatile ("mrs %0, cntfrq_el0" : "=r" (Frequency));
++    DEBUG ((DEBUG_ERROR, "UMI DSI Stall requested=%lu counter-delta=%lu frequency=%lu status=%r\n",
++            (UINT64)Microseconds, After - Before, Frequency, Status));
++  }
++  if (Log) {
++    DEBUG ((DEBUG_ERROR, "UMI svc %u Stall exit %r\n", (UINT32)Sequence, Status));
++  }
++  return Status;
++}
++
++STATIC EFI_STATUS EFIAPI
++UmiTraceSignalEvent (EFI_EVENT Event)
++{
++  EFI_STATUS Status;
++  UINTN Sequence;
++  BOOLEAN Log;
++  Sequence = ++mUmiTraceSequence;
++  Log = TRUE;
++  if (Log) {
++    DEBUG ((DEBUG_ERROR, "UMI svc %u SignalEvent enter caller=%p event=%p\n",
++            (UINT32)Sequence, __builtin_return_address (0), Event));
++  }
++  Status = mUmiOriginalBS.SignalEvent (Event);
++  if (Log) {
++    DEBUG ((DEBUG_ERROR, "UMI svc %u SignalEvent exit %r\n", (UINT32)Sequence, Status));
++  }
++  return Status;
++}
++
++STATIC EFI_STATUS EFIAPI
++UmiTraceGetVariable (CHAR16 *VariableName, EFI_GUID *VendorGuid, UINT32 *Attributes, UINTN *DataSize, VOID *Data)
++{
++  EFI_STATUS Status;
++  UINTN Sequence;
++  BOOLEAN Log;
++  Sequence = ++mUmiTraceSequence;
++  Log = TRUE;
++  if (Log) {
++    DEBUG ((DEBUG_ERROR, "UMI svc %u GetVariable enter caller=%p name=%s\n",
++            (UINT32)Sequence, __builtin_return_address (0), VariableName));
++  }
++  Status = mUmiOriginalRT.GetVariable (VariableName, VendorGuid, Attributes, DataSize, Data);
++  if (Log) {
++    DEBUG ((DEBUG_ERROR, "UMI svc %u GetVariable exit %r\n", (UINT32)Sequence, Status));
++  }
++  return Status;
++}
++
++STATIC EFI_STATUS EFIAPI
++UmiTraceSetVariable (CHAR16 *VariableName, EFI_GUID *VendorGuid, UINT32 Attributes, UINTN DataSize, VOID *Data)
++{
++  EFI_STATUS Status;
++  UINTN Sequence;
++  BOOLEAN Log;
++  Sequence = ++mUmiTraceSequence;
++  Log = TRUE;
++  if (Log) {
++    DEBUG ((DEBUG_ERROR, "UMI svc %u SetVariable enter caller=%p name=%s bytes=0x%lx\n",
++            (UINT32)Sequence, __builtin_return_address (0), VariableName, (UINT64)DataSize));
++  }
++  Status = mUmiOriginalRT.SetVariable (VariableName, VendorGuid, Attributes, DataSize, Data);
++  if (Log) {
++    DEBUG ((DEBUG_ERROR, "UMI svc %u SetVariable exit %r\n", (UINT32)Sequence, Status));
++  }
++  return Status;
++}
++
++STATIC EFI_STATUS EFIAPI
++UmiTraceGetMemorySpaceDescriptor (EFI_PHYSICAL_ADDRESS BaseAddress, EFI_GCD_MEMORY_SPACE_DESCRIPTOR *Descriptor)
++{
++  EFI_STATUS Status;
++  UINTN Sequence;
++  BOOLEAN Log;
++  Sequence = ++mUmiTraceSequence;
++  Log = TRUE;
++  if (Log) {
++    DEBUG ((DEBUG_ERROR, "UMI svc %u GetMemorySpaceDescriptor enter caller=%p base=0x%lx\n",
++            (UINT32)Sequence, __builtin_return_address (0), BaseAddress));
++  }
++  Status = mUmiOriginalDS.GetMemorySpaceDescriptor (BaseAddress, Descriptor);
++  if (Log) {
++    DEBUG ((DEBUG_ERROR, "UMI svc %u GetMemorySpaceDescriptor exit %r\n", (UINT32)Sequence, Status));
++  }
++  return Status;
++}
++
++STATIC EFI_STATUS EFIAPI
++UmiTraceAddMemorySpace (EFI_GCD_MEMORY_TYPE GcdMemoryType, EFI_PHYSICAL_ADDRESS BaseAddress, UINT64 Length, UINT64 Capabilities)
++{
++  EFI_STATUS Status;
++  UINTN Sequence;
++  BOOLEAN Log;
++  Sequence = ++mUmiTraceSequence;
++  Log = TRUE;
++  if (Log) {
++    DEBUG ((DEBUG_ERROR, "UMI svc %u AddMemorySpace enter caller=%p base=0x%lx bytes=0x%lx\n",
++            (UINT32)Sequence, __builtin_return_address (0), BaseAddress, Length));
++  }
++  Status = mUmiOriginalDS.AddMemorySpace (GcdMemoryType, BaseAddress, Length, Capabilities);
++  if (Log) {
++    DEBUG ((DEBUG_ERROR, "UMI svc %u AddMemorySpace exit %r\n", (UINT32)Sequence, Status));
++  }
++  return Status;
++}
++
++STATIC EFI_STATUS EFIAPI
++UmiTraceSetMemorySpaceAttributes (EFI_PHYSICAL_ADDRESS BaseAddress, UINT64 Length, UINT64 Attributes)
++{
++  EFI_STATUS Status;
++  UINTN Sequence;
++  BOOLEAN Log;
++  Sequence = ++mUmiTraceSequence;
++  Log = TRUE;
++  if (Log) {
++    DEBUG ((DEBUG_ERROR, "UMI svc %u SetMemorySpaceAttributes enter caller=%p base=0x%lx bytes=0x%lx attr=0x%lx\n",
++            (UINT32)Sequence, __builtin_return_address (0), BaseAddress, Length, Attributes));
++  }
++  Status = mUmiOriginalDS.SetMemorySpaceAttributes (BaseAddress, Length, Attributes);
++  if (Log) {
++    DEBUG ((DEBUG_ERROR, "UMI svc %u SetMemorySpaceAttributes exit %r\n", (UINT32)Sequence, Status));
++  }
++  return Status;
++}
++
++STATIC VOID
++UmiRefreshTableCrc (EFI_TABLE_HEADER *Header)
++{
++  Header->CRC32 = 0;
++  mUmiOriginalBS.CalculateCrc32 (Header, Header->HeaderSize, &Header->CRC32);
++}
++
++STATIC VOID
++UmiDisplayTraceStart (EFI_GUID *FileName, EFI_HANDLE ImageHandle)
++{
++  EFI_BOOT_SERVICES *BS;
++  EFI_LOADED_IMAGE_PROTOCOL *Image;
++  EFI_STATUS ImageStatus;
++  if (!CompareGuid (FileName, &mUmiDisplayGuid) || mUmiTraceActive) {
++    return;
++  }
++  BS = gDxeCoreST->BootServices;
++  CopyMem (&mUmiOriginalBS, BS, sizeof (mUmiOriginalBS));
++  CopyMem (&mUmiOriginalRT, gDxeCoreRT, sizeof (mUmiOriginalRT));
++  CopyMem (&mUmiOriginalDS, gDxeCoreDS, sizeof (mUmiOriginalDS));
++  mUmiTraceSequence = 0;
++  mUmiStallCount = 0;
++  mUmiDsiPollCount = 0;
++  mUmiDisplayImageBase = 0;
++  Image = NULL;
++  ImageStatus = BS->HandleProtocol (ImageHandle, &gEfiLoadedImageProtocolGuid, (VOID **)&Image);
++  if (!EFI_ERROR (ImageStatus) && (Image != NULL) && (Image->ImageSize >= 0x467D8)) {
++    mUmiDisplayImageBase = (UINTN)Image->ImageBase;
++  }
++  mUmiTraceActive = TRUE;
++  BS->LocateProtocol = UmiTraceLocateProtocol;
++  BS->HandleProtocol = UmiTraceHandleProtocol;
++  BS->LocateHandleBuffer = UmiTraceLocateHandleBuffer;
++  BS->AllocatePool = UmiTraceAllocatePool;
++  BS->FreePool = UmiTraceFreePool;
++  BS->Stall = UmiTraceStall;
++  BS->SignalEvent = UmiTraceSignalEvent;
++  gDxeCoreRT->GetVariable = UmiTraceGetVariable;
++  gDxeCoreRT->SetVariable = UmiTraceSetVariable;
++  gDxeCoreDS->GetMemorySpaceDescriptor = UmiTraceGetMemorySpaceDescriptor;
++  gDxeCoreDS->AddMemorySpace = UmiTraceAddMemorySpace;
++  gDxeCoreDS->SetMemorySpaceAttributes = UmiTraceSetMemorySpaceAttributes;
++  UmiRefreshTableCrc (&BS->Hdr);
++  UmiRefreshTableCrc (&gDxeCoreRT->Hdr);
++  UmiRefreshTableCrc (&gDxeCoreDS->Hdr);
++}
++
++STATIC VOID
++UmiDisplayTraceStop (EFI_GUID *FileName)
++{
++  EFI_BOOT_SERVICES *BS;
++  if (!CompareGuid (FileName, &mUmiDisplayGuid) || !mUmiTraceActive) {
++    return;
++  }
++  BS = gDxeCoreST->BootServices;
++  UmiDsiSnapshot ("display-entry-return");
++  if (BS->LocateProtocol == UmiTraceLocateProtocol) {
++    BS->LocateProtocol = mUmiOriginalBS.LocateProtocol;
++  }
++  if (BS->HandleProtocol == UmiTraceHandleProtocol) {
++    BS->HandleProtocol = mUmiOriginalBS.HandleProtocol;
++  }
++  if (BS->LocateHandleBuffer == UmiTraceLocateHandleBuffer) {
++    BS->LocateHandleBuffer = mUmiOriginalBS.LocateHandleBuffer;
++  }
++  if (BS->AllocatePool == UmiTraceAllocatePool) {
++    BS->AllocatePool = mUmiOriginalBS.AllocatePool;
++  }
++  if (BS->FreePool == UmiTraceFreePool) {
++    BS->FreePool = mUmiOriginalBS.FreePool;
++  }
++  if (BS->Stall == UmiTraceStall) {
++    BS->Stall = mUmiOriginalBS.Stall;
++  }
++  if (BS->SignalEvent == UmiTraceSignalEvent) {
++    BS->SignalEvent = mUmiOriginalBS.SignalEvent;
++  }
++  if (gDxeCoreRT->GetVariable == UmiTraceGetVariable) {
++    gDxeCoreRT->GetVariable = mUmiOriginalRT.GetVariable;
++  }
++  if (gDxeCoreRT->SetVariable == UmiTraceSetVariable) {
++    gDxeCoreRT->SetVariable = mUmiOriginalRT.SetVariable;
++  }
++  if (gDxeCoreDS->GetMemorySpaceDescriptor == UmiTraceGetMemorySpaceDescriptor) {
++    gDxeCoreDS->GetMemorySpaceDescriptor = mUmiOriginalDS.GetMemorySpaceDescriptor;
++  }
++  if (gDxeCoreDS->AddMemorySpace == UmiTraceAddMemorySpace) {
++    gDxeCoreDS->AddMemorySpace = mUmiOriginalDS.AddMemorySpace;
++  }
++  if (gDxeCoreDS->SetMemorySpaceAttributes == UmiTraceSetMemorySpaceAttributes) {
++    gDxeCoreDS->SetMemorySpaceAttributes = mUmiOriginalDS.SetMemorySpaceAttributes;
++  }
++  UmiRefreshTableCrc (&BS->Hdr);
++  UmiRefreshTableCrc (&gDxeCoreRT->Hdr);
++  UmiRefreshTableCrc (&gDxeCoreDS->Hdr);
++  mUmiTraceActive = FALSE;
++}
++
+ 
+ //
+ // The Driver List contains one copy of every driver that has been discovered.
+@@ -518,7 +907,9 @@
+         ASSERT (DriverEntry->ImageHandle != NULL);
+ 
+         DEBUG ((DEBUG_ERROR, "UMI DXE start %g\n", &DriverEntry->FileName));
++        UmiDisplayTraceStart (&DriverEntry->FileName, DriverEntry->ImageHandle);
+         Status = CoreStartImage (DriverEntry->ImageHandle, NULL, NULL);
++        UmiDisplayTraceStop (&DriverEntry->FileName);
+         DEBUG ((DEBUG_ERROR, "UMI DXE done %g status %r\n", &DriverEntry->FileName, Status));
+ 
+         REPORT_STATUS_CODE_WITH_EXTENDED_DATA (

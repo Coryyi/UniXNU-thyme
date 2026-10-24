@@ -1,0 +1,16 @@
+# SPDX-License-Identifier: BSD-2-Clause-Patent
+[Defines]
+  INF_VERSION   = 0x00010005
+  BASE_NAME     = UmiMemoryMapLib
+  FILE_GUID     = 3738E569-4FC8-4F96-A884-75A0DE0A5DAC
+  MODULE_TYPE   = BASE
+  VERSION_STRING = 1.0
+  LIBRARY_CLASS = MemoryMapLib
+
+[Sources]
+  MemoryMapLib.c
+
+[Packages]
+  ArmPkg/ArmPkg.dec
+  MdePkg/MdePkg.dec
+  SiliciumPkg/SiliciumPkg.dec

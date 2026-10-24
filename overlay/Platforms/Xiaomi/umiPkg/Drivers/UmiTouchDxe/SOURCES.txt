@@ -1,0 +1,143 @@
+UmiTouchDxe bring-up evidence and boundaries
+
+The new UEFI implementation and host-testable wire decoder are licensed
+BSD-2-Clause-Patent. No Linux implementation or vendor binary is embedded.
+The Linux sources used as hardware/protocol references are GPL-2.0 (individual
+source headers retain the copyright notices of ST, Xiaomi and Qualcomm).
+
+Fixed upstream kernel:
+https://github.com/LineageOS/android_kernel_xiaomi_sm8250/tree/71b13e62f057a649b77fe4062feb73ee72ad609c
+Downloaded references plus their complete URLs and SHA-256 digests are retained:
+<local-workspace>/out/umi/research/fts-static-20261020/sources.json
+
+Important fixed-commit reference files and SHA-256:
+drivers/input/touchscreen/fts_521/fts.c
+  35d7c5969542cda75bd5099c59caafec2157916d7a1922df2e41d360c0342068
+  enter/leave:3690-3940; FIFO:4741-4810; sensing:5302; power:6803;
+  GPIO:6903; normal sensing command:5535.
+drivers/input/touchscreen/fts_521/fts_lib/ftsCore.c
+  ac9d88fce719b46e4c869b8ed9c67eafd54579274a0688e96de71b3d04a7167c
+  reset:85 (GPIO low10ms/high, then READY wait); setScanMode:333; enableInterrupt:834
+  only changes Linux host IRQ enable state, not an IC command.
+drivers/input/touchscreen/fts_521/fts_lib/ftsIO.c
+  4681f9a372560983042a3facdccbe97a749a2566758134f0a0aee3133892d803
+  fts_writeRead:201 uses one combined write/read I2C transaction.
+drivers/input/touchscreen/fts_521/fts_lib/ftsHardware.h
+  5b004329cf669edb035d62c836578f7003e78922760c5f5de04368327e72e15b
+  I2C slave49; read-FIFO86; records8bytes; FIFO32; no I2C dummy byte.
+drivers/input/touchscreen/fts_521/fts_lib/ftsFlash.c
+  Flash unlock/erase/burn paths are explicitly excluded from this driver.
+drivers/pinctrl/qcom/pinctrl-kona.c
+  87014b0ea67da00fb7c78f543c0030647a546797a15f3192657d0ca5840820ff
+  SOUTH=0x00500000; stride0x1000; GPIO36/37/38/39/69 use SOUTH.
+  CTL FUNC[5:2], PULL[1:0], DRIVE[8:6], OE9; IO IN0 and OUT1.
+  Function0 is GPIO; function1 is qup13 for GPIO36/37.
+drivers/pinctrl/qcom/pinctrl-msm.c
+  8a90053fec34bbc93766049d2dd7c9e7ef6148e81746d2eaf7bb4bbba1077c01
+  Input clears OE; output sets the OUT latch before enabling OE.
+drivers/i2c/busses/i2c-gpio.c and drivers/i2c/algos/i2c-algo-bit.c
+  Open-drain operation, 5us default timing and SCL-high stretching checks.
+drivers/i2c/busses/i2c-qcom-geni.c:1163
+  GENI_IF_FIFO_DISABLE_RO !=0 selects GSI_ONLY. Existing Android dmesg has
+  a94000 GSI errors. GPIO I2C avoids any attempt to reconfigure GENI/GSI/clocks.
+include/linux/qcom-geni-se.h
+  GENI status offset40 active bits0/12; FIFO disable64; FW revision68.
+
+Primary supplemental pin-function reference (cross-model corroboration only):
+Qualcomm QRB5165 datasheet 80-PV086-1 Rev.E, page39:
+https://docs.qualcomm.com/doc/80-PV086-1/80-PV086-1_REV_E_QRB5165_Data_Sheet.pdf
+GPIO36 QUP13 lane0=I2C_SDA; GPIO37 lane1=I2C_SCL. This is not a umi schematic.
+
+Handset evidence:
+out/device/umi/20261020T040435517245Z/running.dts:6006-6093
+  i2c@a94000/fts@49; GPIO38 reset; GPIO39 level-low IRQ; x1080/y2340.
+  GPIO36/37 active qup13, no pull and2mA. TLMM base0f000000.
+  vdd=PM8150a L1 at1.8V; avdd=GPIO69 high-active fixed regulator. Its actual
+  voltage is not stated. Linux's request for3.3V fails; it is not evidence of
+  measured rail voltage. The driver observes GPIO69/reset38 high and the
+  idle bus; it reads L1's programmed/ready voltage through PMIC registers.
+  This is not an independent electrical measurement of either supply.
+out/umi/boot/attempt-02/post-boot/dmesg.txt:2013-2101
+  Actual panel selects st_fts_j2_2.ftb, FW0128/config004b/SVN4053. Chip flash
+  already contains equal firmware. Loading/rewriting any .ftb is unnecessary.
+
+Implementation contract:
+GPIO36/37 CTL and OUT bit1 implement software open-drain I2C:
+OUT stays0, OE1 sinks low, OE0 releases. High is never actively driven.
+GPIO39, GENI/clock/IRQ registers remain read-only or untouched.
+First snapshot includes SE13 40/48/64/68/7c/908 and GPIO36/37/38/39/69 CTL/IO.
+No takeover if GENI is busy or released SDA/SCL are not high.
+If reset38/rail69 are not driven high, guarded initialization finds exactly
+one PMIC type51/model27 on known even SIDs0/2/4/8/a; its secondary SID is
+even+1. Candidate LDO1 must read this handset's observed type04/subtype71
+and already be set to1800mV. No SPMI register is written by touch.
+If aggregate ENABLE4046 is exactly0 and READY4008 bit7 is clear, UmiRpmhLib
+may send one ACTIVE ldoc1 enable=1 request. It dynamically resolves the exact
+cmd-db resource; no numeric accelerator address is guessed. See that library's
+SOURCES.txt for RSC/DB origins, strict guards and bounded completion protocol.
+Ready4008 bit7 and actual voltage4042/43=1800mV must then be observed.
+After15ms, GPIO69 is driven high and reset38 held low10ms then driven high.
+The source reset GPIO sequence is in ftsCore.c85, power order in fts.c6803.
+Attempt12 established PM8150A at SID4/model27 and LDO1 at SID5/type04/subtype71,
+set1800mV, ENABLE0, READY03, actual0. Direct SPMI enable was refused because
+no EE0-owned write channel exists; there is no bypass or direct-write fallback.
+The RPMh experiment requests only enable, leaving voltage/mode/other resources
+untouched. Existing inherited already-enabled supplies do not acquire a vote.
+Supply state inherited across boot is unknown until observation; normal
+Android runtime state does not establish the state inherited from ABL.
+
+PMIC register evidence is the handset's PmicDxeLa.efi, SHA256
+0fb20feb36b9b4c8c1cf9cac266b2d6a1a0c7623ab82e40befeaacedb0c00913.
+LDO table RVA2b8c0; init a440; ready d430; voltage d524/d65c; enable d198/d398;
+model and SID discovery7094. Findings and exported REA evidence:
+<local-workspace>/out/umi/research/fts-power-static-20261020/power-findings.txt
+<local-workspace>/out/umi/research/fts-power-static-20261020/pmic-evidence.json
+
+At TPL_CALLBACK only: combined92/86/repeated-START93/read8/STOP, last byte
+NACK. A valid ACKed FIFO record permits only normal volatile A0 00 01 scan.
+Four records maximum per20ms callback; one transfer limit8ms and one SCL
+stretch limit500us, plus one bounded STOP on error. The driver cancels its
+timer and restores owned pins/power on transport/protocol/preflight errors.
+After this driver's hardware reset, NACK is tolerated only within100ms while
+awaiting READY03. This100ms NACK policy is our bounded bring-up strategy;
+Linux itself retries each transfer3 times with2ms gaps and up to3 resets.
+No all-address scan, bus recovery pulses, calibration, firmware burn or
+flash-save command is performed. Normal-operation errors have no retry loop.
+
+One finger/glove is tracked; no palm/hover/pen. A second contact, unsupported
+type during an active gesture, invalid XY, malformed record or queue overflow
+cancels the gesture and disables touch for this boot. Coordinates are native
+portrait0..1079/0..2339. Display rotation must be applied by the consumer.
+Motion can recover a missed enter; a real leave keeps the last valid XY.
+An ordered32-entry queue preserves a tap's down/up when read in one batch.
+Cancellation clears that queue: it never synthesizes an EFI_SUCCESS tap-up.
+WaitForInput signals cancellation once and GetState returns EFI_DEVICE_ERROR.
+The consumer must clear Down/Eligible/ArmedRow on that status and must not
+activate a row. Other input protocols remain available. A controller-ready03
+record also clears the queue and signals cancellation, but is recoverable:
+volatile normal scanning resumes; cancellation is delivered before any
+post-reset pointer samples. Fatal errors keep GetState returning DEVICE_ERROR.
+
+WaitForInput only checks the queue/cancellation at TPL_NOTIFY. Reset is a
+software cancellation of pointer state, with no chip GPIO reset.
+ExitBootServices cancels polling and restores saved CTL/output latches for
+GPIO36/37 and, if changed, GPIO38/69. L1 is restored only if this driver
+enabled it: cleanup sends RPMh enable=0 to withdraw its current DRV2 request.
+This is not an exact restoration of an unknown inherited DRV vote; other DRVs
+remain independently aggregated. Busy/unconfirmed completion cannot be
+overwritten; the library retains its slot/snapshot and outstanding marker so
+later cleanup can retry. Error completion while idle is reclaimable, but a
+failed disable retains the possibly-effective enable marker.
+An inherited running controller's power is retained. The next OS owns its
+reset/mode programming.
+
+Host verification:
+clang -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined \
+  TestFtsEvent.c -o /tmp/umi-fts-test && /tmp/umi-fts-test
+This covers wire parsing and event queue behavior, not MMIO or real I2C.
+python3 TestTouchLifecycle.py
+This compiles the actual RestorePower/Consume/Poll function bodies against
+mocked bus/MMIO/time and injects vote-withdrawal failure/retry,
+READY in the drained batch, READY timeout and startup NACK. It checks that
+cleanup remains retryable, a scan is not sent twice, and no scan precedes
+READY during initialization. ASan/UBSan are enabled. No phone I/O is used.

@@ -1,0 +1,22 @@
+## @file
+# SPDX-License-Identifier: BSD-2-Clause-Patent
+##
+[Defines]
+  INF_VERSION = 0x0001001B
+  BASE_NAME = UmiSpmiLib
+  FILE_GUID = 25D5C4B7-7C50-4B76-90DA-99810875DD40
+  MODULE_TYPE = BASE
+  VERSION_STRING = 0.1
+  LIBRARY_CLASS = UmiSpmiLib
+
+[Sources]
+  UmiSpmi.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+  umiPkg/umi.dec
+
+[LibraryClasses]
+  BaseLib
+  IoLib
+  TimerLib

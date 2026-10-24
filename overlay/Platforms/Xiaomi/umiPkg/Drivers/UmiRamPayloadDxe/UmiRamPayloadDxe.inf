@@ -1,0 +1,35 @@
+[Defines]
+  INF_VERSION = 0x0001001B
+  BASE_NAME = UmiRamPayloadDxe
+  FILE_GUID = 6E5E7A73-8787-4361-9292-5E7FB97CA401
+  MODULE_TYPE = DXE_DRIVER
+  VERSION_STRING = 0.1
+  ENTRY_POINT = UmiRamPayloadEntry
+
+[Sources]
+  UmiRamPayload.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+  MdeModulePkg/MdeModulePkg.dec
+  SiliciumPkg/SiliciumPkg.dec
+
+[LibraryClasses]
+  BaseLib
+  BaseMemoryLib
+  DebugLib
+  FdtLib
+  HobLib
+  UefiBootServicesTableLib
+  UefiDriverEntryPoint
+
+[Guids]
+  gSiliciumEntryArgHobGuid
+
+[Protocols]
+  gEfiBlockIoProtocolGuid
+  gEfiDevicePathProtocolGuid
+  gEfiSimpleFileSystemProtocolGuid
+
+[Depex]
+  TRUE

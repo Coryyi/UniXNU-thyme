@@ -1,0 +1,27 @@
+[Defines]
+  INF_VERSION = 0x0001001B
+  BASE_NAME = UmiPayloadCheck
+  FILE_GUID = E84F2A4F-8C0E-49AE-B5F3-B9FC591DA252
+  MODULE_TYPE = UEFI_APPLICATION
+  VERSION_STRING = 0.1
+  ENTRY_POINT = UefiMain
+
+[Sources]
+  UmiPayloadCheck.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+
+[LibraryClasses]
+  BaseMemoryLib
+  DebugLib
+  UefiApplicationEntryPoint
+  UefiBootServicesTableLib
+  UefiRuntimeServicesTableLib
+  UefiLib
+
+[Protocols]
+  gEfiLoadedImageProtocolGuid
+  gEfiSimpleFileSystemProtocolGuid
+  gEfiBlockIoProtocolGuid
+  gEfiGraphicsOutputProtocolGuid

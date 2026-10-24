@@ -1,0 +1,535 @@
+{
+  "source": "this handset XBL export RawFiles/DXE_apriori_file",
+  "source_sha256": "8d0fc7193d28024d497d35f56c0256fb860b1b2cd3cbc3efa5dfa89937c5f73f",
+  "source_bytes": 1344,
+  "source_entries": 84,
+  "evidence_type": "static firmware bytes; no execution observed",
+  "selected_vendor_entries": 24,
+  "selected_stock_slots": [
+    {
+      "stock_index": 0,
+      "name": "DxeCore",
+      "stock_guid": "D6A2CB7F-6A18-4E2F-B43B-9920A733700A",
+      "inf": "MdeModulePkg/Core/Dxe/DxeMain.inf",
+      "kind": "source equivalent; not byte-identical to stock"
+    },
+    {
+      "stock_index": 1,
+      "name": "EnvDxe",
+      "stock_guid": "90A49AFD-422F-08AE-9611-E788D3804845",
+      "inf": "Binaries/umi/QcomPkg/Drivers/EnvDxe/EnvDxe.inf",
+      "kind": "unchanged vendor module"
+    },
+    {
+      "stock_index": 2,
+      "name": "RscRtDxe",
+      "stock_guid": "D93CE3D8-A7EB-4730-8C8E-CC466A9ECC3C",
+      "inf": "MdeModulePkg/Universal/ReportStatusCodeRouter/RuntimeDxe/ReportStatusCodeRouterRuntimeDxe.inf",
+      "kind": "source equivalent; not byte-identical to stock"
+    },
+    {
+      "stock_index": 3,
+      "name": "SCHandlerRtDxe",
+      "stock_guid": "6C2004EF-4E0E-4BE4-B14C-340EB4AA5891",
+      "inf": "MdeModulePkg/Universal/StatusCodeHandler/RuntimeDxe/StatusCodeHandlerRuntimeDxe.inf",
+      "kind": "source equivalent; not byte-identical to stock"
+    },
+    {
+      "stock_index": 4,
+      "name": "RuntimeDxe",
+      "stock_guid": "B601F8C4-43B7-4784-95B1-F4226CB40CEE",
+      "inf": "MdeModulePkg/Core/RuntimeDxe/RuntimeDxe.inf",
+      "kind": "source equivalent; not byte-identical to stock"
+    },
+    {
+      "stock_index": 5,
+      "name": "ArmCpuDxe",
+      "stock_guid": "B8D9777E-D72A-451F-9BDB-BAFB52A68415",
+      "inf": "ArmPkg/Drivers/CpuDxe/CpuDxe.inf",
+      "kind": "source equivalent; not byte-identical to stock"
+    },
+    {
+      "stock_index": 6,
+      "name": "ArmGicDxe",
+      "stock_guid": "DE371F7C-DEC4-4D21-ADF1-593ABCC15882",
+      "inf": "ArmPkg/Drivers/ArmGicDxe/ArmGicDxe.inf",
+      "kind": "source equivalent; not byte-identical to stock"
+    },
+    {
+      "stock_index": 7,
+      "name": "MetronomeDxe",
+      "stock_guid": "4C6E0267-C77D-410D-8100-1495911A989D",
+      "inf": "EmbeddedPkg/MetronomeDxe/MetronomeDxe.inf",
+      "kind": "source equivalent; not byte-identical to stock"
+    },
+    {
+      "stock_index": 8,
+      "name": "ArmTimerDxe",
+      "stock_guid": "49EA041E-6752-42CA-B0B1-7344FE2546B7",
+      "inf": "ArmPkg/Drivers/TimerDxe/TimerDxe.inf",
+      "kind": "source equivalent; not byte-identical to stock"
+    },
+    {
+      "stock_index": 9,
+      "name": "SmemDxe",
+      "stock_guid": "F541D663-4A48-40AA-AABF-FF158CCAE34C",
+      "inf": "Binaries/umi/QcomPkg/Drivers/SmemDxe/SmemDxe.inf",
+      "kind": "unchanged vendor module"
+    },
+    {
+      "stock_index": 10,
+      "name": "DALSys",
+      "stock_guid": "8E9BD160-B184-11DF-94E2-0800200C9A66",
+      "inf": "Binaries/umi/QcomPkg/Drivers/DALSYSDxe/DALSYSDxe.inf",
+      "kind": "unchanged vendor module"
+    },
+    {
+      "stock_index": 11,
+      "name": "HWIODxeDriver",
+      "stock_guid": "AF9763A2-033B-4109-8E17-56A98D380C92",
+      "inf": "Binaries/umi/QcomPkg/Drivers/HWIODxe/HWIODxe.inf",
+      "kind": "unchanged vendor module"
+    },
+    {
+      "stock_index": 12,
+      "name": "ChipInfo",
+      "stock_guid": "10E193DF-9966-44E7-B17C-59DD831E20FC",
+      "inf": "Binaries/umi/QcomPkg/Drivers/ChipInfoDxe/ChipInfoDxe.inf",
+      "kind": "unchanged vendor module"
+    },
+    {
+      "stock_index": 13,
+      "name": "PlatformInfoDxeDriver",
+      "stock_guid": "B105211B-BBBD-4ADD-A3B0-D1CF4A52154C",
+      "inf": "Binaries/umi/QcomPkg/Drivers/PlatformInfoDxe/PlatformInfoDxe.inf",
+      "kind": "unchanged vendor module"
+    },
+    {
+      "stock_index": 15,
+      "name": "ULogDxe",
+      "stock_guid": "E43128A8-8692-42B6-8AFA-676158578D18",
+      "inf": "Binaries/umi/QcomPkg/Drivers/ULogDxe/ULogDxe.inf",
+      "kind": "unchanged vendor module"
+    },
+    {
+      "stock_index": 16,
+      "name": "CmdDbDxe",
+      "stock_guid": "ABA01FF8-2CCB-4E12-8B2E-CD3F4A742993",
+      "inf": "Binaries/umi/QcomPkg/Drivers/CmdDbDxe/CmdDbDxe.inf",
+      "kind": "unchanged vendor module"
+    },
+    {
+      "stock_index": 17,
+      "name": "PwrUtilsDxe",
+      "stock_guid": "0401B830-BFF9-44A2-A5F6-95734A33C017",
+      "inf": "Binaries/umi/QcomPkg/Drivers/PwrUtilsDxe/PwrUtilsDxe.inf",
+      "kind": "unchanged vendor module"
+    },
+    {
+      "stock_index": 18,
+      "name": "NpaDxe",
+      "stock_guid": "CB29F4D1-7F37-4692-A416-93E82E219711",
+      "inf": "Binaries/umi/QcomPkg/Drivers/NpaDxe/NpaDxe.inf",
+      "kind": "unchanged vendor module"
+    },
+    {
+      "stock_index": 19,
+      "name": "RpmhDxe",
+      "stock_guid": "CB29F4D1-7F37-4692-A416-93E82E219766",
+      "inf": "Binaries/umi/QcomPkg/Drivers/RpmhDxe/RpmhDxe.inf",
+      "kind": "unchanged vendor module"
+    },
+    {
+      "stock_index": 20,
+      "name": "PdcDxe",
+      "stock_guid": "B43C22DB-6333-490C-872D-0A73439059FD",
+      "inf": "Binaries/umi/QcomPkg/Drivers/PdcDxe/PdcDxe.inf",
+      "kind": "unchanged vendor module"
+    },
+    {
+      "stock_index": 21,
+      "name": "VcsDxe",
+      "stock_guid": "8BD3B475-401A-4B0B-9315-EDEE61A1EAE5",
+      "inf": "Binaries/umi/QcomPkg/Drivers/VcsDxe/VcsDxe.inf",
+      "kind": "unchanged vendor module"
+    },
+    {
+      "stock_index": 22,
+      "name": "ClockDxe",
+      "stock_guid": "4DB5DEA6-5302-4D1A-8A82-677A683B0D29",
+      "inf": "Binaries/umi/QcomPkg/Drivers/ClockDxe/ClockDxe.inf",
+      "kind": "unchanged vendor module"
+    },
+    {
+      "stock_index": 23,
+      "name": "SPMI",
+      "stock_guid": "2A7B4BEF-80CD-49E1-B473-374BA4D673FC",
+      "inf": "Binaries/umi/QcomPkg/Drivers/SPMIDxe/SPMIDxe.inf",
+      "kind": "unchanged vendor module"
+    },
+    {
+      "stock_index": 24,
+      "name": "ShmBridgeDxe",
+      "stock_guid": "9C1EB71F-DD6C-4ED5-9F6A-5CC0CA789F16",
+      "inf": "Binaries/umi/QcomPkg/Drivers/ShmBridgeDxe/ShmBridgeDxeLA.inf",
+      "kind": "unchanged vendor module"
+    },
+    {
+      "stock_index": 25,
+      "name": "ScmDxe",
+      "stock_guid": "2D7A83E3-E343-4FFB-9109-631F2EE11694",
+      "inf": "Binaries/umi/QcomPkg/Drivers/TzDxe/ScmDxeLA.inf",
+      "kind": "unchanged vendor module"
+    },
+    {
+      "stock_index": 26,
+      "name": "DALTLMM",
+      "stock_guid": "8681CC5A-0DF6-441E-B4B8-E915C538F067",
+      "inf": "Binaries/umi/QcomPkg/Drivers/TLMMDxe/TLMMDxe.inf",
+      "kind": "unchanged vendor module"
+    },
+    {
+      "stock_index": 27,
+      "name": "ResetRuntimeDxe",
+      "stock_guid": "3AE17DB7-3CC5-4B89-9304-9549211057EF",
+      "inf": "MdeModulePkg/Universal/ResetSystemRuntimeDxe/ResetSystemRuntimeDxe.inf",
+      "kind": "source equivalent; not byte-identical to stock"
+    },
+    {
+      "stock_index": 28,
+      "name": "PmicDxe",
+      "stock_guid": "5776232E-082D-4B75-9A0E-FE1D13F7A5D9",
+      "inf": "Binaries/umi/QcomPkg/Drivers/PmicDxe/PmicDxeLa.inf",
+      "kind": "unchanged vendor module"
+    },
+    {
+      "stock_index": 36,
+      "name": "TzDxe",
+      "stock_guid": "6925FAD3-E243-4B69-AD61-3F978C8ABC60",
+      "inf": "Binaries/umi/QcomPkg/Drivers/TzDxe/TzDxeLA.inf",
+      "kind": "unchanged vendor module"
+    },
+    {
+      "stock_index": 37,
+      "name": "VariableDxe",
+      "stock_guid": "2B0ECDCE-01AE-446E-9FFD-C4217DE0340F",
+      "inf": "MdeModulePkg/Universal/Variable/RuntimeDxe/VariableRuntimeDxe.inf",
+      "kind": "source equivalent; not byte-identical to stock"
+    },
+    {
+      "stock_index": 41,
+      "name": "SPI",
+      "stock_guid": "7A32BD23-F735-4F57-AA1A-447D2FE3BE0D",
+      "inf": "Binaries/umi/QcomPkg/Drivers/SPIDxe/SPIDxe.inf",
+      "kind": "unchanged vendor module"
+    },
+    {
+      "stock_index": 42,
+      "name": "I2C",
+      "stock_guid": "04DE8591-D2B3-4077-BBBE-B12070094EB6",
+      "inf": "Binaries/umi/QcomPkg/Drivers/I2CDxe/I2CDxe.inf",
+      "kind": "unchanged vendor module"
+    },
+    {
+      "stock_index": 43,
+      "name": "DisplayDxe",
+      "stock_guid": "4138022F-06C7-4F79-9C94-7E33B511A4E7",
+      "inf": "Binaries/umi/QcomPkg/Drivers/DisplayDxe/DisplayDxe.inf",
+      "kind": "unchanged vendor module"
+    },
+    {
+      "stock_index": 47,
+      "name": "CPRDxe",
+      "stock_guid": "1B52138D-3FA3-4E50-B958-20887353F809",
+      "inf": "Binaries/umi/QcomPkg/Drivers/CPRDxe/CPRDxe.inf",
+      "kind": "unchanged vendor module"
+    },
+    {
+      "stock_index": 48,
+      "name": "WatchdogTimer",
+      "stock_guid": "F099D67F-71AE-4C36-B2A3-DCEB0EB2B7D8",
+      "inf": "MdeModulePkg/Universal/WatchdogTimerDxe/WatchdogTimer.inf",
+      "kind": "source equivalent; not byte-identical to stock"
+    },
+    {
+      "stock_index": 52,
+      "name": "EmbeddedMonotonicCounter",
+      "stock_guid": "37795BA0-E1CF-4ED5-BD8B-16DF6BCB1E1A",
+      "inf": "EmbeddedPkg/EmbeddedMonotonicCounter/EmbeddedMonotonicCounter.inf",
+      "kind": "source equivalent; not byte-identical to stock"
+    },
+    {
+      "stock_index": 53,
+      "name": "RealTimeClock",
+      "stock_guid": "B336F62D-4135-4A55-AE4E-4971BBF0885D",
+      "inf": "EmbeddedPkg/RealTimeClockRuntimeDxe/RealTimeClockRuntimeDxe.inf",
+      "kind": "source equivalent; not byte-identical to stock"
+    },
+    {
+      "stock_index": 54,
+      "name": "PrintDxe",
+      "stock_guid": "79E4A61C-ED73-4312-94FE-E3E7563362A9",
+      "inf": "MdeModulePkg/Universal/PrintDxe/PrintDxe.inf",
+      "kind": "source equivalent; not byte-identical to stock"
+    },
+    {
+      "stock_index": 55,
+      "name": "DevicePathDxe",
+      "stock_guid": "9B680FCE-AD6B-4F3A-B60B-F59899003443",
+      "inf": "MdeModulePkg/Universal/DevicePathDxe/DevicePathDxe.inf",
+      "kind": "source equivalent; not byte-identical to stock"
+    },
+    {
+      "stock_index": 56,
+      "name": "CapsuleRuntimeDxe",
+      "stock_guid": "42857F0A-13F2-4B21-8A23-53D3F714B840",
+      "inf": "MdeModulePkg/Universal/CapsuleRuntimeDxe/CapsuleRuntimeDxe.inf",
+      "kind": "source equivalent; null capsule backend; runtime updates disabled"
+    },
+    {
+      "stock_index": 57,
+      "name": "HiiDatabase",
+      "stock_guid": "348C4D62-BFBD-4882-9ECE-C80BB1C4783B",
+      "inf": "MdeModulePkg/Universal/HiiDatabaseDxe/HiiDatabaseDxe.inf",
+      "kind": "source equivalent; not byte-identical to stock"
+    },
+    {
+      "stock_index": 59,
+      "name": "QcomBds",
+      "stock_guid": "5A50AA81-C3AE-4608-A0E3-41A2E69BAF94",
+      "inf": "MdeModulePkg/Universal/BdsDxe/BdsDxe.inf",
+      "kind": "source equivalent; not byte-identical to stock"
+    },
+    {
+      "stock_index": 81,
+      "name": "ConPlatformDxe",
+      "stock_guid": "51CCF399-4FDF-4E55-A45B-E123F84D456A",
+      "inf": "MdeModulePkg/Universal/Console/ConPlatformDxe/ConPlatformDxe.inf",
+      "kind": "source equivalent; not byte-identical to stock"
+    },
+    {
+      "stock_index": 82,
+      "name": "ConSplitterDxe",
+      "stock_guid": "408EDCEC-CF6D-477C-A5A8-B4844E3DE281",
+      "inf": "MdeModulePkg/Universal/Console/ConSplitterDxe/ConSplitterDxe.inf",
+      "kind": "source equivalent; not byte-identical to stock"
+    },
+    {
+      "stock_index": 83,
+      "name": "GraphicsConsoleDxe",
+      "stock_guid": "CCCB0C28-4B24-11D5-9A5A-0090273FC14D",
+      "inf": "MdeModulePkg/Universal/Console/GraphicsConsoleDxe/GraphicsConsoleDxe.inf",
+      "kind": "source equivalent; not byte-identical to stock"
+    }
+  ],
+  "inserted_source_modules": [
+    "MdeModulePkg/Universal/PCD/Dxe/Pcd.inf",
+    "UniXNUPkg/Driver/UniXNUDxe/UniXNUDxe.inf"
+  ],
+  "omitted_stock_entries": [
+    {
+      "stock_index": 14,
+      "name": "HALIOMMU",
+      "guid": "9A00771F-36D4-4DD5-8916-C48ED9B16B86",
+      "reason": "Attempt 05 controlled isolation: attempt 04 reached HALIOMMU attach allocation and did not return; DisplayDxe treats missing protocol as nonfatal. Keep ABL MDP stream mappings, no storage DMA drivers."
+    },
+    {
+      "stock_index": 29,
+      "name": "DiskIoDxe",
+      "guid": "6B38F7B4-AD98-40E9-9093-ACA2B5A253C4"
+    },
+    {
+      "stock_index": 30,
+      "name": "PartitionDxe",
+      "guid": "1FA1F39E-FEFF-4AAE-BD7B-38A070A3B609"
+    },
+    {
+      "stock_index": 31,
+      "name": "EnglishDxe",
+      "guid": "CD3BAFB6-50FB-4FE8-8E4E-AB74D2C1A600"
+    },
+    {
+      "stock_index": 32,
+      "name": "FvSimpleFileSystem",
+      "guid": "907125C0-A5F1-11E3-A3FE-A3198B49350C"
+    },
+    {
+      "stock_index": 33,
+      "name": "SdccDxe",
+      "guid": "F10F76DB-42C1-533F-34A8-69BE24653110"
+    },
+    {
+      "stock_index": 34,
+      "name": "UFSDxe",
+      "guid": "0D35CD8E-97EA-4F9A-96AF-0F0D89F76567"
+    },
+    {
+      "stock_index": 35,
+      "name": "Fat",
+      "guid": "961578FE-B6B7-44C3-AF35-6BC705CD2B1F"
+    },
+    {
+      "stock_index": 38,
+      "name": "FeatureEnablerDxe",
+      "guid": "1C04F529-0612-4319-9315-B2E75C16810A"
+    },
+    {
+      "stock_index": 39,
+      "name": "QcomWDogDxe",
+      "guid": "040E1E61-0AFB-411B-9EC9-00F3FC59CC13"
+    },
+    {
+      "stock_index": 40,
+      "name": "DDRInfoDxe",
+      "guid": "7DB0793A-4402-4BE1-906E-D0FABAD2707E"
+    },
+    {
+      "stock_index": 44,
+      "name": "PILProxyDxe",
+      "guid": "8CF9C920-D5E6-4DAC-BEF9-6E6A4EEC7ADD"
+    },
+    {
+      "stock_index": 45,
+      "name": "PILDxe",
+      "guid": "1D317734-4083-47C6-83EA-E3A42F2A6BFF"
+    },
+    {
+      "stock_index": 46,
+      "name": "SPSSDxe",
+      "guid": "5D787B6C-6254-43F5-A7A8-CB25329CF97E"
+    },
+    {
+      "stock_index": 49,
+      "name": "ASN1X509Dxe",
+      "guid": "C2F9A4F5-F7B4-43E7-BA99-5EA804CC103A"
+    },
+    {
+      "stock_index": 50,
+      "name": "SecRSADxe",
+      "guid": "32C71E68-83A8-46ED-AED1-094E71B12057"
+    },
+    {
+      "stock_index": 51,
+      "name": "VerifiedBootDxe",
+      "guid": "A25F5839-4D55-428F-8F0B-5CE1D565F53E"
+    },
+    {
+      "stock_index": 58,
+      "name": "FontDxe",
+      "guid": "ED15FFD5-BC96-4107-9118-95366600188E"
+    },
+    {
+      "stock_index": 60,
+      "name": "VibratorDxe",
+      "guid": "82C22DEC-6375-4A61-AAE1-573B137A3DEC"
+    },
+    {
+      "stock_index": 61,
+      "name": "AdcDxe",
+      "guid": "5A5CB8CA-9382-4E0C-B383-77FB517CD9EB"
+    },
+    {
+      "stock_index": 62,
+      "name": "UsbPwrCtrlDxe",
+      "guid": "11FAED4C-B21F-4D88-8E48-C4C28A1E50DF"
+    },
+    {
+      "stock_index": 63,
+      "name": "QcomChargerDxeLA",
+      "guid": "4BCE7F36-428E-4393-99E3-7E0844404DBA"
+    },
+    {
+      "stock_index": 64,
+      "name": "ChargerExDxe",
+      "guid": "2E3042F3-2BB9-463F-8866-56D75B7C4AB0"
+    },
+    {
+      "stock_index": 65,
+      "name": "UsbfnDwc3Dxe",
+      "guid": "94F8A6A7-DC34-4101-88C1-99179CCEAE83"
+    },
+    {
+      "stock_index": 66,
+      "name": "XhciPciEmulation",
+      "guid": "BEB12BEE-F6E1-11E1-9FB8-6C626DE4AEB1"
+    },
+    {
+      "stock_index": 67,
+      "name": "XhciDxe",
+      "guid": "B7F50E91-A759-412C-ADE4-DCD03E7F7C28"
+    },
+    {
+      "stock_index": 68,
+      "name": "UsbBusDxe",
+      "guid": "240612B7-A063-11D4-9A3A-0090273FC14D"
+    },
+    {
+      "stock_index": 69,
+      "name": "UsbKbDxe",
+      "guid": "2D2E62CF-9ECF-43B7-8219-94E7FC713DFE"
+    },
+    {
+      "stock_index": 70,
+      "name": "UsbMassStorageDxe",
+      "guid": "9FB4B4A7-42C0-4BCD-8540-9BCC6711F83E"
+    },
+    {
+      "stock_index": 71,
+      "name": "UsbConfigDxe",
+      "guid": "CD823A4D-7DEC-4531-AE5D-4134FA4127B8"
+    },
+    {
+      "stock_index": 72,
+      "name": "ButtonsDxe",
+      "guid": "5BD181DB-0487-4F1A-AE73-820E165611B3"
+    },
+    {
+      "stock_index": 73,
+      "name": "TsensDxe",
+      "guid": "F09AD92E-485C-9CDB-3E05-3385C38F94CC"
+    },
+    {
+      "stock_index": 74,
+      "name": "LimitsDxe",
+      "guid": "F09AD92E-4E91-490F-AB99-E69939B840B2"
+    },
+    {
+      "stock_index": 75,
+      "name": "GpiDxe",
+      "guid": "569EA0DE-B557-4043-84CF-01103FE516E5"
+    },
+    {
+      "stock_index": 76,
+      "name": "HashDxe",
+      "guid": "3ADF8DDA-1850-44C5-8C63-BB991849BC6F"
+    },
+    {
+      "stock_index": 77,
+      "name": "CipherDxe",
+      "guid": "5F0937CD-73F9-445E-B320-BB6FD5D3CBDE"
+    },
+    {
+      "stock_index": 78,
+      "name": "MacDxe",
+      "guid": "20583A66-3C26-4D9E-9A8C-E2DFA2914015"
+    },
+    {
+      "stock_index": 79,
+      "name": "RngDxe",
+      "guid": "B0D3689E-11F8-43C6-8ECE-023A29CEC35B"
+    },
+    {
+      "stock_index": 80,
+      "name": "SimpleTextInOutSerial",
+      "guid": "857A8741-0EEC-43BD-9482-27D14ED47D72"
+    }
+  ],
+  "limitations": [
+    "This pruned subset is not the original XBL environment.",
+    "Source core replacements retain function roles, not byte identity or proven ABI equivalence.",
+    "APRIORI bypasses DEPEX; original DEPEX remains intact in each binary.",
+    "FeatureEnablerDxe and DDRInfoDxe are omitted pending side-effect auditing.",
+    "PdcDxe and SPIDxe are retained as stock pre-display candidates; runtime necessity is unproven.",
+    "No firmware image has been executed by this analysis."
+  ]
+}

@@ -1,0 +1,36 @@
+## @file
+# Diagnostic CPU framebuffer GOP for the Xiaomi Mi 10.
+# SPDX-License-Identifier: BSD-2-Clause-Patent
+##
+
+[Defines]
+  INF_VERSION                    = 0x00010005
+  BASE_NAME                      = UmiInheritedFbDxe
+  FILE_GUID                      = 2C7A179A-0BE1-438D-A565-1236C6AD0192
+  MODULE_TYPE                    = DXE_DRIVER
+  VERSION_STRING                 = 0.1
+  ENTRY_POINT                    = UmiInheritedFbEntry
+
+[Sources]
+  InheritedFb.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+  MdeModulePkg/MdeModulePkg.dec
+  SiliciumPkg/SiliciumPkg.dec
+
+[LibraryClasses]
+  DebugLib
+  FrameBufferBltLib
+  UefiBootServicesTableLib
+  UefiDriverEntryPoint
+  MemoryAllocationLib
+  MemoryMapHelperLib
+  BaseMemoryLib
+
+[Protocols]
+  gEfiGraphicsOutputProtocolGuid
+  gEfiDevicePathProtocolGuid
+
+[Depex]
+  TRUE

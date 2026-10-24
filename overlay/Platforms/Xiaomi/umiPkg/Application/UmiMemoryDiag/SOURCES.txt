@@ -1,0 +1,73 @@
+UmiMemoryDiag v4 — guarded RAM and Darwin-style allocation tests
+
+SMEM region 0x80900000+0x200000 is already reserved and MMU-mapped in the
+verified umi firmware; its address agrees with the handset FDT and XBL.
+Candidate 0xc0000000..0xe0000000 is accessed only after independent
+SMEM/FDT/EFI/GCD checks. Shared memory is read-only; the code does not
+allocate shared-memory items or invoke vendor initialization.
+
+Wire-layout references:
+
+U-Boot ece349ade2973e220f524ce59e59711cc919263f
+https://github.com/u-boot/u-boot/blob/ece349ade2973e220f524ce59e59711cc919263f/drivers/smem/msm_smem.c
+SHA256 5a6ac1423f9893de5578a1680b1fe2f8931f8eceb6c81b012a8e71ac4f847aa4
+SMEM initialization header, v11 allocation table, v12 $TOC/$PRT global
+partition and uncached item record layouts. This implementation is a
+bounded read-only parser, not a port of the allocation/locking driver.
+Cached v12 items and auxiliary physical regions are deliberately unsupported.
+
+lk2nd fd11905d61f220daf9ad69b1b26144cbc6020169
+https://github.com/msm8916-mainline/lk2nd/blob/fd11905d61f220daf9ad69b1b26144cbc6020169/platform/msm_shared/smem.h
+SHA256 51e37945329240d34bacf35fb98a75daa7ceafd9e943ccd0e42e6929f474f0fc
+Item 402, RAM table magic, v1/v2 headers and entries. Unknown table
+versions, invalid counts and overflow/oversized regions are rejected.
+Only a single RAM v3 SDRAM/system/read-write entry, domain 0 or APPS, whose
+available_length contains the entire candidate is accepted. All other
+overlapping SMEM entries cause rejection.
+
+Qualcomm's Aswin Murugan, U-Boot mailing-list patch, 2026-04-17:
+https://www.mail-archive.com/u-boot@lists.denx.de/msg570801.html
+"[PATCH v3 1/7] mach-snapdragon: Add generic SMEM cache infrastructure"
+Proposed arch/arm/mach-snapdragon/rampart.h explicitly defines table version
+0x3: 24-byte header, 72-byte entries, available_length at entry offset 64.
+It is a submitted patch, not claimed as merged U-Boot code. The v3 wire
+layout is independently decoded here; no source implementation is copied.
+The observed umi item size 0x918 equals 24 + 32 * 72.
+
+The FDT is obtained from the preserved entry-argument HOB and accepted only
+inside the existing 0xa0000000..0xb0000000 mapped boot window, <=2 MiB.
+EFI GetMemoryMap describes the allocator's actual current map; adjacent
+conventional descriptors are combined for largest-run reporting only.
+
+The probe also verifies the candidate is contained in exactly one FDT bank,
+is disjoint from every static reserved-memory reg and FDT memreserve, is
+absent from the current EFI map, and lies in a nonexistent GCD region.
+The twelve observed size-only reserved-memory requests are matched by name,
+size and allocation bounds. They are future Linux allocations, not current
+physical carveouts: no Linux kernel has run in this temporary boot. No
+arbitrary dynamic node is accepted. Unknown layouts fail closed.
+
+After guards: establish a WB/XP MMU mapping, fill and check the entire
+512 MiB twice using complementary address-dependent patterns, with cache
+writeback/invalidation between fill and verify. Register only this range
+using GCD services, set WB/XP, AllocatePages a contiguous 256 MiB within it,
+repeat the patterns, FreePages, log the resulting map, and warm-reset.
+If the firmware has already registered the candidate (attempt 19 onward),
+the application verifies all covering GCD descriptors are system memory and
+skips direct full-range writes and registration. It touches only pages
+successfully allocated by UEFI, preserving the firmware's live allocations.
+The v4 allocation uses AllocateAddress/EfiLoaderCode with the same 2 MiB
+rounding and adjacent-descriptor merging requirement as DarwinBoot. It
+tests two kernel low offsets, 0 and 0x4000, each with 256 MiB and both
+patterns, and frees each allocation. This is an allocator qualification;
+DarwinBoot, ExitBootServices and XNU entry have not run.
+Test failures are logged and reset; external aborts still require manual
+recovery. It is not a full DRAM stress test or proof of all boot-time users.
+Runtime registration is inspired by Silicium MemoryAllocationHelperLib;
+ArmSetMemoryAttributes uses this pinned Mu_Basecore API's EFI attributes.
+No persistent partitions are written.
+
+Host test: tests/test_umi_memory.py compiles the real parser with ASan/UBSan
+and checks valid v11/v12, RAM v1/v2/v3, read-only operation and malformed
+offsets/sizes/counts/padding. It does not establish hardware accessibility.
+The external application is built but is never included in the firmware FV.

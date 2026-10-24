@@ -1,0 +1,15 @@
+# SPDX-License-Identifier: BSD-2-Clause-Patent
+[Defines]
+  INF_VERSION   = 0x00010005
+  BASE_NAME     = UmiConfigurationMapLib
+  FILE_GUID     = 1F852C01-90F9-43D8-A0C5-49432EFFA173
+  MODULE_TYPE   = BASE
+  VERSION_STRING = 1.0
+  LIBRARY_CLASS = ConfigurationMapLib
+
+[Sources]
+  ConfigurationMapLib.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+  QcomPkg/QcomPkg.dec

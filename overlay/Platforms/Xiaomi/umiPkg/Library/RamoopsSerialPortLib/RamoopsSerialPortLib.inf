@@ -1,0 +1,21 @@
+## @file
+# umi console ramoops logger; no physical UART, storage or Boot Services.
+# SPDX-License-Identifier: BSD-2-Clause-Patent
+##
+
+[Defines]
+  INF_VERSION    = 0x0001001B
+  BASE_NAME      = RamoopsSerialPortLib
+  FILE_GUID      = 524C59F2-32E7-4C27-864A-58D2BA061351
+  MODULE_TYPE    = BASE
+  VERSION_STRING = 1.0
+  LIBRARY_CLASS  = SerialPortLib
+
+[Sources]
+  RamoopsSerialPortLib.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+
+[LibraryClasses]
+  BaseLib

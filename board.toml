@@ -1,0 +1,112 @@
+# Xiaomi Mi 10 / SM8250 device repository.
+# This default file selects the minimal baseline; full phone status and profiles are in README.md and docs/BUILD.md.
+[board]
+name = "thyme"
+soc = "SM8250"
+description = "Xiaomi Mi 10S / SM8250-AC UniXNU bring-up (measured 2026-10-24)"
+kit = "umi"
+
+[kernel]
+defconfig = "umi_defconfig"
+
+# Minimal security bring-up closure, not a storage or userland configuration.
+# Build its source input with --crypto-bootstrap prelinked before prelinking.
+# The initializer is tied to the exact donor SHA below, never a Xiaomi address.
+[kernel.prelink]
+tool = "kits/NativePrelink/emit_prelink.py"
+kernel = "build/xnu/ios-obj/DEVELOPMENT_ARM64_BCM2837/mach.development.bcm2837.unstripped.noctf"
+kernelcache_sha256 = "f18b4df865405f2a287b84977d7aca745e056d656d9fc9df1662970ce2969de7"
+slide = "-0x1000000"
+early_security_init = "com.apple.driver.AppleMobileFileIntegrity=0xfffffff005ab4ae0"
+roots = ["com.apple.driver.AppleMobileFileIntegrity", "com.apple.security.sandbox"]
+
+# Selected by the owner after the XR donor failed the ordinary-ARM64 prelink check.
+# Same donor as the pinned sheng example; this does not qualify umi runtime support.
+[ipsw]
+url = "https://updates.cdn-apple.com/2025SpringFCS/fullrestores/122-77166/DCA6CFE8-90E9-4B92-880D-3DE171798E40/iPad_Pro_HFR_17.7.11_21H461_Restore.ipsw"
+product = "iPad7,1"
+version = "17.7.11"
+build = "21H461"
+device_class = "j120ap"
+chip_id = 0x8011
+board_id = 12
+fetch = ["KernelCache", "DeviceTree", "StaticTrustCache", "Cryptex1,SystemTrustCache"]
+
+[ipsw.sha256]
+"kernelcache.release.ipad7" = "13b97fa2c5ce97f04408dcc28c41fb6b0d60b9440065197879acf44b2572bf7b"
+"DeviceTree.j120ap.im4p" = "3f612f64819fbf6a8aacc03fabeda08ba897c4bf5385df995c59815c0c80c8f0"
+"044-76040-038.dmg.trustcache" = "4563bdbf6ed8f72237d45dbba3ccde432634338f95c10d79d5d4631678a97c7c"
+"044-76034-038.dmg.trustcache" = "9742f3d566369e6c48f63b3dc0740b06c243d13c6650e25bbf44616e13d6d097"
+"044-76040-038.dmg" = "3f99b859c9728379110b66657c7b15285bcb1925ad8b5726542e2cdcf8b1028d"
+"044-76034-038.dmg" = "b4908cde41d23e6bc05e6af51a2c9eeb00cf0f863a6a18b1600c96a3fd70414f"
+
+# GPT geometry read and CRC-checked on this exact umi. The owner authorized
+# replacement of Android userdata on 2026-10-20. This is image preparation
+# metadata, not evidence that the XNU UFS transport/root mount works.
+[userdata]
+first_lba = 0x2a8000
+last_lba = 0x3b037fa
+lba_bytes = 4096
+windows = [
+  { name = "OS", component = "OS" },
+  { name = "SystemOS", component = "Cryptex1,SystemOS" },
+]
+
+# The proven EFI-only RAM payload uses package/unixnu.toml through the workspace
+# make_umi_payload.py. XNU/root qualification is tracked separately in out/umi.
+# Do not copy sheng's partition LBAs or hardware setup here.
+
+[firmware]
+config = "umi"
+dsc = "Platforms/Xiaomi/umiPkg/umi.dsc"
+fd = "Build/umiPkg/{target}_CLANGPDB/FV/SILICIUM_UEFI.fd"
+patches = ["Resources/MuPatches/Gic-Spurious.patch", "Resources/MuPatches/Mac-Bash3.patch", "Resources/MuPatches/Dxe-Trace.patch", "Resources/MuPatches/Display-Services-Trace.patch"]
+packages = [
+  "{uefi}", "{uefi}/Platforms/Xiaomi", "{tree}/package", "{edk2}",
+  "{uefi}/Common/Mu", "{uefi}/Common/Mu_OEM_Sample",
+  "{uefi}/Silicon/Qualcomm", "{uefi}/Silicon/Silicium",
+]
+
+[firmware.defines]
+ENABLE_SECUREBOOT = "0"
+DEVICE_MODEL = "0"
+MEMORY_PROTECTION = "TRUE"
+SHIP_MODE = "FALSE"
+BUILDID_STRING = "umi-menu-research"
+
+[bootimg.image]
+header_version = 1
+pagesize = 4096
+base = 0
+kernel_offset = 0x8000
+tags_offset = 0x1e00000
+
+# XNU payload contract. The older 8 MiB EFI diagnostic volume is separate.
+# DarwinBoot is staged by the workspace's explicit --loader-profile darwinboot.
+# The 512 MiB conventional window and
+# Darwin-style 256 MiB allocations passed attempt 19. The 64 MiB RAM initrd
+# limit and FAT32 volume passed attempt 20 using an EFI diagnostic, not XNU.
+# The generic XNU packer writes FAT32; reserve a 64 MiB image.
+[payload]
+volume = "UMIXNU"
+size_mib = 64
+loader = "firmware"
+title = "Mi 10S - XNU bring-up"
+# Sum of the three observed FDT DRAM banks, including RAM above 4 GiB.
+dram_size = "0x1fbb00000"
+panic_screen = false
+timeout = -1
+kernel_args = ["-v", "keepsyms=1", "kt_fixed_zones=120"]
+
+[payload.adt]
+tool = "scripts/make-umi-adt.py"
+# Local IOPlatformUUID seed based on the observed qcom,msm-id, not Apple ApChipID.
+chip_id = "0x164"
+unique_chip_id = "required"
+# Actual SM8250 MPIDR affinities, also applied to the qualified RAM payload ADT.
+cpu_regs = "0,0x100,0x200,0x300,0x400,0x500,0x600,0x700"
+psci_method = "smc"
+owned_memory_size = "0x10000000"
+packed_data_ramdisk = false
+ipad_identity = false
+# No root UUID until storage is qualified. The 256 MiB allocation passed attempt 19.

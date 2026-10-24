@@ -1,0 +1,36 @@
+[Defines]
+  INF_VERSION = 0x0001001B
+  BASE_NAME = UmiMemoryDiag
+  FILE_GUID = 1028D456-1525-416B-9849-BFB50B060D41
+  MODULE_TYPE = UEFI_APPLICATION
+  VERSION_STRING = 0.1
+  ENTRY_POINT = UefiMain
+
+[Sources]
+  UmiMemoryDiag.c
+  SmemRead.h
+  RamGuard.h
+  RamProbe.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+  UefiCpuPkg/UefiCpuPkg.dec
+  ArmPkg/ArmPkg.dec
+  SiliciumPkg/SiliciumPkg.dec
+
+[LibraryClasses]
+  BaseLib
+  ArmMmuLib
+  CacheMaintenanceLib
+  DxeServicesTableLib
+  BaseMemoryLib
+  DebugLib
+  FdtLib
+  HobLib
+  UefiApplicationEntryPoint
+  UefiBootServicesTableLib
+  UefiRuntimeServicesTableLib
+  UefiLib
+
+[Guids]
+  gSiliciumEntryArgHobGuid

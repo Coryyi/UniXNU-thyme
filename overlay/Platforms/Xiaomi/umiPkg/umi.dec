@@ -1,0 +1,15 @@
+## @file
+# SPDX-License-Identifier: BSD-2-Clause-Patent
+##
+[Defines]
+  DEC_SPECIFICATION = 0x0001001B
+  PACKAGE_NAME = umiPkg
+  PACKAGE_GUID = A8B04763-ED91-4476-B4E7-04666763B6E7
+  PACKAGE_VERSION = 0.1
+
+[Includes]
+  Include
+
+[LibraryClasses]
+  UmiSpmiLib|Include/Library/UmiSpmiLib.h
+  UmiRpmhLib|Include/Library/UmiRpmhLib.h

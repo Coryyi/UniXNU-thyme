@@ -1,0 +1,15 @@
+# SPDX-License-Identifier: BSD-2-Clause-Patent
+[Defines]
+  INF_VERSION   = 0x00010005
+  BASE_NAME     = NullSecureBootHandlerLib
+  FILE_GUID     = 47558F17-33F2-4264-855C-515116225F6C
+  MODULE_TYPE   = DXE_DRIVER
+  VERSION_STRING = 1.0
+  LIBRARY_CLASS = SecureBootHandlerLib|DXE_DRIVER
+
+[Sources]
+  NullSecureBootHandlerLib.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+  SiliciumPkg/SiliciumPkg.dec
