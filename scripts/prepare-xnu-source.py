@@ -53,18 +53,21 @@ def main():
         source = ROOT / "refer" / name
         if not (source / ".git").exists():
             # The mainline unixnu fetch step skips these refer feeds; clone the
-            # pinned commit on demand with a sparse checkout of the subtree.
+            # pinned commit on demand and extract the subtree at the source
+            # root (the umi layout the header walk below expects).
             subprocess.run(["git", "init", "-q", str(source)], check=True)
             subprocess.run(["git", "-C", str(source), "remote", "add", "origin",
                             "https://github.com/apple-oss-distributions/xnu.git"], check=True)
-            subprocess.run(["git", "-C", str(source), "config",
-                            "core.sparseCheckout", "true"], check=True)
-            sparse = source / ".git/info/sparse-checkout"
-            sparse.parent.mkdir(parents=True, exist_ok=True)
-            sparse.write_text("/" + prefix + chr(10))
             subprocess.run(["git", "-C", str(source), "fetch", "-q", "--depth", "1",
                             "origin", commit], check=True)
-            subprocess.run(["git", "-C", str(source), "checkout", "-q", "FETCH_HEAD"], check=True)
+            subprocess.run(["git", "-C", str(source), "update-ref", "HEAD", "FETCH_HEAD"], check=True)
+            archive = subprocess.Popen(["git", "-C", str(source), "archive", "FETCH_HEAD", prefix],
+                                       stdout=subprocess.PIPE)
+            strip = prefix.count("/") + 1
+            subprocess.run(["tar", "-x", "-C", str(source),
+                            "--strip-components=%d" % strip], stdin=archive.stdout, check=True)
+            archive.stdout.close()
+            archive.wait()
         head = subprocess.check_output(
             ["git", "-C", source, "rev-parse", "HEAD"], text=True).strip()
         if head != commit:
