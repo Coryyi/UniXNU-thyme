@@ -51,6 +51,20 @@ def main():
     records = []
     for name, commit, tag, prefix in SOURCES:
         source = ROOT / "refer" / name
+        if not (source / ".git").exists():
+            # The mainline unixnu fetch step skips these refer feeds; clone the
+            # pinned commit on demand with a sparse checkout of the subtree.
+            subprocess.run(["git", "init", "-q", str(source)], check=True)
+            subprocess.run(["git", "-C", str(source), "remote", "add", "origin",
+                            "https://github.com/apple-oss-distributions/xnu.git"], check=True)
+            subprocess.run(["git", "-C", str(source), "config",
+                            "core.sparseCheckout", "true"], check=True)
+            sparse = source / ".git/info/sparse-checkout"
+            sparse.parent.mkdir(parents=True, exist_ok=True)
+            sparse.write_text("/" + prefix + chr(10))
+            subprocess.run(["git", "-C", str(source), "fetch", "-q", "--depth", "1",
+                            "origin", commit], check=True)
+            subprocess.run(["git", "-C", str(source), "checkout", "-q", "FETCH_HEAD"], check=True)
         head = subprocess.check_output(
             ["git", "-C", source, "rev-parse", "HEAD"], text=True).strip()
         if head != commit:
