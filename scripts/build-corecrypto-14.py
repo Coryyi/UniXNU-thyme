@@ -139,7 +139,9 @@ archive.unlink(missing_ok=True)
 subprocess.run(['xcrun', 'ar', 'rcs', archive, *[object_dir / result['object'] for result in results]], check=True)
 defined = names(archive, '-U')
 undefined = names(archive, '-u') - defined
-kernel_exports = names(kernel, '-U')
+kernel_exports = names(kernel, '-U') if kernel.exists() else set()
+if not kernel.exists():
+    print('link survey skipped: kernel binary not built yet (bootstrap order)')
 survey = {'unresolved_external_names': sorted(undefined), 'missing_kernel_names': sorted(undefined - kernel_exports),
           'duplicate_kernel_names': sorted(defined & kernel_exports), 'provider_registered': False,
           'abi_compatibility_proven': False}

@@ -89,7 +89,9 @@ for source in sources:
     compile_one(source, destination)
     objects.append(destination)
 kernel = ROOT / 'build/xnu/ios-obj/DEVELOPMENT_ARM64_BCM2837/mach.development.bcm2837.unstripped.noctf'
-kernel_names = names(kernel, '-U', global_only=False)
+kernel_names = names(kernel, '-U', global_only=False) if kernel.exists() else set()
+if not kernel.exists():
+    print('collision survey skipped: kernel binary not built yet (bootstrap order)')
 definitions = set().union(*(names(path, '-U') for path in objects))
 collisions = definitions & kernel_names
 if collisions:
