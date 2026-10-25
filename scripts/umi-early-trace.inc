@@ -45,6 +45,16 @@
 
 .macro UMI_TRACE_BODY
 	THYME_BAND
+	// thyme: re-arm the APSS watchdog with a phase-scaled bite so the
+	// recovery latency encodes the last trace phase (~10 s per phase).
+	mov	x14, #0x10
+	movk	x14, #0x17C1, lsl #16
+	orr	x15, xzr, x9, lsl #23
+	str	x15, [x14]
+	str	x15, [x14, #4]
+	mov	w16, #1
+	str	w16, [x14, #-8]
+	dsb	sy
 	cbz	x11, 9f
 	ldr	w16, [x11]
 	mov	w17, #0x4244
