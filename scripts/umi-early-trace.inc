@@ -25,46 +25,7 @@
 .endmacro
 
 /* x9=phase, x10=value, x11=console header. Preserve x0..x8, x18..x30. */
-.macro THYME_BAND
-	// thyme: paint up to 4 sub-bands (64 KiB each) at 0x9C700000,
-	// one per set bit of the phase - read them as a binary number.
-	movz	x14, #0x9C70, lsl #16
-	mov	x15, #0x10000
-	mov	x16, #4
-1:
-	lsr	x17, x9, x16
-	tst	x17, #1
-	b.eq	2f
-	orr	x17, xzr, x9
-	orr	x17, x17, x17, lsl #8
-	orr	x17, x17, x17, lsl #16
-	orr	x17, x17, x17, lsl #32
-	mov	x12, #0x1000
-3:
-	stp	x17, x17, [x14], #16
-	subs	x12, x12, #1
-	b.ne	3b
-2:
-	add	x14, x14, x15
-	subs	x16, x16, #1
-	b.ne	1b
-.endm
-
 .macro UMI_TRACE_BODY
-	THYME_BAND
-	// thyme: re-arm the APSS watchdog with a phase-scaled bite, SKIPPING
-	// phase 1 (its MMIO store was implicated by the x8 experiment).
-	cmp	x9, #2
-	b.lo	98f
-	mov	x14, #0x10
-	movk	x14, #0x17C1, lsl #16
-	movz	x15, #0x4C4B, lsl #16
-	str	x15, [x14]
-	str	x15, [x14, #4]
-	mov	w16, #1
-	str	w16, [x14, #-8]
-	dsb	sy
-	98:
 	cbz	x11, 9f
 	ldr	w16, [x11]
 	mov	w17, #0x4244

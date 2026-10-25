@@ -1,112 +1,29 @@
-# Reproducing the umi development workspace
+# thyme 构建与验证路线
 
-This is the source snapshot used for the Mi 10 bring-up through attempt 80. The
-public `board.toml` and `umi_defconfig` still select the small source-only baseline.
-The Hello configuration is assembled by the explicit bring-up tools; running
-`unixnu build` with the default board file does not produce that configuration.
+## 当前构建边界
 
-The tested host is macOS arm64 with Xcode command-line tools, Python 3.11 or newer,
-Git, LLVM/LLD, device-tree-compiler and mtools. Host protocol tests use Clang's
-AddressSanitizer and UndefinedBehaviorSanitizer. Linux builds are not qualified.
+主仓使用 Coryyi/UniXNU 的 umi-pin 分支，设备仓为 Coryyi/UniXNU-thyme。
+2026-10-25 的 Actions run 40202591498 成功完成 kernel；userdata、payload 均未执行。
+本次追踪修复尚未完成新的完整 kernel CI 或真机验证。
 
-## Source checkouts
+source-lock.json 固定的是原 umi 工作区。旧 check-umi-repository.py 还要求
+board.name=umi 和固定上游提交，不能拿它给当前 thyme fork 出具通过证明。
+不要只改锁文件使检查变绿；应建立实际固件、内核、ADT、镜像的 SHA-256 清单。
 
-```sh
-git clone https://github.com/reAAAq/UniXNU-umi
-git clone https://github.com/reAAAq/uefi-umi
-git clone https://github.com/UniXNU/UniXNU
-git clone https://github.com/UniXNU/UniXNU-sheng
-```
+## 按验证门槛推进
 
-Use the commits in `UniXNU-umi/source-lock.json`. In each checkout, run
-`git checkout <the-corresponding-commit>`; initialize the UEFI submodules needed
-by the build (`Mu_Basecore`, `Common/Mu`, `Common/Mu_OEM_Sample`, `Silicium-ACPI`
-and the OpenSSL submodule). Do not substitute current upstream `main`: upstream
-has since split its drivers into repositories and changed several interfaces.
+1. 固定并纳管本机实际使用的 thymePkg、BootShim、DarwinBoot 和构建脚本，保留当前可回 Android 的备份。
+2. 使用 console-only 追踪重编译内核；检查追踪开关与最终 kernel 哈希，重新组装 payload 和 boot.img。
+3. 根据本机 FDT、XBL 配置、保留区及 UEFI 实际分配记录核对内存。Recovery 顶部 reserved 区说明不能仅凭 DRAM bank 覆盖就声称整段可分配。
+4. 建立可读的 XNU 阶段证据。若需画屏，使用 BootArgs 的已验证 scanout，限定写入边界，建立正确页表并处理 MMU 生命周期；与 watchdog 分开实验。
+5. 先验证入口、MMU、arm_vm_init、timer/GIC，再逐项启用 SMP。交接前色带和复位时长不能替代内核阶段记录。
+6. 单独验证 UFS 读取、OS/SystemOS、root、launchd，再考虑 Hello。默认 umi_defconfig 不包含完整用户态配置。
+7. 在测试区验证 Data 和 FTS 触摸，之后分别评估 GPU、网络、音频、USB 和电源管理。它们各自需要驱动与真机验证，无可靠完成日期。
 
-Create a separate workspace next to the clones:
+临时 fastboot boot 不刷写 boot 分区，但启动的固件仍执行真实硬件操作；
+所有测试镜像都应先检查其存储写入路径、设备身份和内存范围。
 
-```sh
-python3 UniXNU-umi/bringup/setup-workspace.py \
-  --workspace umi-work \
-  --unixnu UniXNU --uefi uefi-umi --sheng UniXNU-sheng
-cd umi-work
-python3 devices/umi/scripts/check-umi-repository.py \
-  --unixnu sources/UniXNU --out out/repository-check
-python3 -m unittest discover -s tests -p 'test_umi_touch_trace.py'
-```
+## 上游资料
 
-The setup tool refuses an existing output directory or mismatched source pins.
-It copies host scripts and tests, then links the three source checkouts and this
-device repository. Firmware staging modifies the supplied UEFI checkout, so use
-a dedicated checkout. Generated outputs stay under `umi-work/out/`.
-
-## Source kernel baseline
-
-```sh
-python3 tools/build_umi_xnu.py --stage all --profile phone -j 6
-```
-
-This fetches the pinned public source dependencies, builds the support archives
-and source kernel. It does not prelink Apple components or produce a complete
-Hello image. The base is XNU `10063.141.1` / Darwin `23.6.0`; the original donor
-kernel is `10063.142.1.703.8`. They are distinct version pins.
-
-## Hello configuration and required local inputs
-
-The tested phone profile adds prelinked crypto, PMGR service integration, GIC
-diagnostics, eight-core startup, native UFS, authenticated OS/SystemOS mounting,
-persistent Data, legacy display and the ST FTS/HID path. The source
-entry points are `build_umi_xnu.py`, `build_umi_prelink.py`,
-`build_umi_data_display.py`, `prepare_umi_uefi.py` and `build_umi_uefi.py`.
-
-Full reproduction is not yet a single clean-clone command. These tools still
-consume local generated records, including:
-
-- Extracted iPad7,1 / 17.7.11 / 21H461 inputs, matching `ipsw-inputs.json`.
-- ABI metadata under `out/umi/storage-abi/`, verified policy/trust-cache inputs,
-  and matching reference Mach-O files used by the original driver bindings.
-- A packed APFS Data seed and its adjacent identity JSON; OS/SystemOS image
-  metadata; the corresponding root, prelink and ADT provenance records.
-- The phone's measured boot/DTBO/FDT evidence and verified XBL import manifest.
-
-Some archive recipes retain paths named `qemu-*` from the earlier ABI research.
-These are input records, not a requirement to run QEMU for each phone build.
-`--reuse-storage-from 55` is a local incremental-build shortcut and is not a
-fresh-clone build instruction. Packaging those provenance-generation steps into
-a self-contained build flow remains follow-up work.
-
-For the currently tested firmware path, use `--display-profile inherited
---input-profile buttons --payload-profile ram --loader-profile darwinboot`.
-The final root profile uses a 124 MiB payload and a `0x130000000` owned-memory
-window on the tested 12 GiB handset, rather than the baseline board's 64 MiB
-payload and 256 MiB window.
-
-IPSW contents, trust caches, Data seeds, vendor firmware, generated kernels and
-device dumps are intentionally absent. The original one-device partition-write
-scripts are also absent: their serial and partition assumptions are not a
-general installer. Re-measure another handset before any partition operation.
-
-## Touch and log checks
-
-Attempt 80 uses `umi-fts-gpi=1` for native GPI DMA I²C. The startup path enables
-the board's native always-on PM8150B GPIO5 rail before the FTS supply/reset
-sequence, requiring the tested PMIC/pin profile and EE0 ownership and verifying
-the enable readback after 4 ms. Do not reuse these board constants on other devices.
-The native reference is the
-[LineageOS SM8250 kernel at 71b13e6](https://github.com/LineageOS/android_kernel_xiaomi_sm8250/tree/71b13e62f057a649b77fe4062feb73ee72ad609c);
-source hashes are recorded under `package/touch/*-reference.json`.
-Those reference files retain their build-time status for provenance; current
-hardware results are recorded separately in `docs/validation.json`.
-
-`tools/check_umi_touch.py --attempt <number>` runs the C++ protocol/fault tests,
-CRC decoder checks and RAM-console budget check. Its final layout audit requires
-the original public ST parser at the path used by
-`tools/check_umi_fts_sysinfo_layout.py`. Obtain `ftsCore.c` and `ftsCore.h` from
-[MiCode umi-q-oss at db67ca6](https://github.com/MiCode/Xiaomi_Kernel_OpenSource/tree/db67ca6001320efc1f945c270635434fc403a9d4/drivers/input/touchscreen/fts_521/fts_lib);
-the script verifies the parser hash before using it.
-
-`tools/decode_umi_xnu_trace.py` and the `umi_*_trace.py` modules decode retained
-RAM logs. Incomplete records remain incomplete; a successful HID attachment is
-not counted as a physical touch report. Tests that consume generated payloads
-or device evidence require those local inputs and are not clean-clone smoke tests.
+[原 Mi 10 构建说明](BUILD-umi-upstream.md)记录原始本地 ABI、seed、策略等输入依赖；
+它不是本机 thyme 干净克隆后的一键构建指南。
