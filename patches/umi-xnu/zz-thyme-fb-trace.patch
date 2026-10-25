@@ -1,27 +1,33 @@
 diff --git a/osfmk/arm64/start.s b/osfmk/arm64/start.s
 --- a/osfmk/arm64/start.s
 +++ b/osfmk/arm64/start.s
-@@ -640,4 +640,10 @@
+@@ -640,5 +640,29 @@
  	add x9, x2, #0xc00
  	MOV64 x10, (0xb0000000 | ARM_TTE_TYPE_BLOCK | ARM_TTE_VALID | ARM_TTE_BLOCK_AF | ARM_TTE_BLOCK_SH(SH_OUTER_MEMORY) | ARM_TTE_BLOCK_ATTRINDX(CACHE_ATTRINDX_DISABLE) | ARM_TTE_BLOCK_PNX | ARM_TTE_BLOCK_NX)
  	str x10, [x9]
-	// thyme: map the APSS watchdog page (2 MiB, uncached) so the trace
-	// can re-arm it after the MMU comes up.
-	ldr x9, [x25, #16]
-	cbnz x9, Lbootstrap_tables_exhausted
-	mov x0, #0x17c00000
-	mov x4, x0
-	mov x5, #1
-	mov x1, x25
-	create_bootstrap_mapping x0, x4, x5, x1, x2, x6, x10, x11, x12, x13
-	add x9, x2, #0xe00
-	MOV64 x10, (0x17c00000 | ARM_TTE_TYPE_BLOCK | ARM_TTE_VALID | ARM_TTE_BLOCK_AF | ARM_TTE_BLOCK_SH(SH_OUTER_MEMORY) | ARM_TTE_BLOCK_ATTRINDX(CACHE_ATTRINDX_DISABLE) | ARM_TTE_BLOCK_PNX | ARM_TTE_BLOCK_NX)
-	str x10, [x9]
 +	// thyme: map the inherited splash framebuffer (2 MiB, uncached) so
-+	// THYME_BAND can paint stage bands after the MMU comes up. Same L2
-+	// table as the console block (both live in L1 slot 2).
-+	add x9, x2, #0x700
++	// THYME_BAND can paint stage bands after the MMU comes up.
++	ldr x9, [x25, #16]
++	cbnz x9, Lbootstrap_tables_exhausted
++	mov x0, #0x9c000000
++	mov x4, x0
++	mov x5, #1
++	mov x1, x25
++	create_bootstrap_mapping x0, x4, x5, x1, x2, x6, x10, x11, x12, x13
++	add x9, x2, #0xc00
 +	MOV64 x10, (0x9c000000 | ARM_TTE_TYPE_BLOCK | ARM_TTE_VALID | ARM_TTE_BLOCK_AF | ARM_TTE_BLOCK_SH(SH_OUTER_MEMORY) | ARM_TTE_BLOCK_ATTRINDX(CACHE_ATTRINDX_DISABLE) | ARM_TTE_BLOCK_PNX | ARM_TTE_BLOCK_NX)
 +	str x10, [x9]
++	// thyme: map the APSS watchdog page (2 MiB, uncached) so the trace
++	// can re-arm it after the MMU comes up. Same L1 slot 0 tables.
++	ldr x9, [x25, #16]
++	cbnz x9, Lbootstrap_tables_exhausted
++	mov x0, #0x17c00000
++	mov x4, x0
++	mov x5, #1
++	mov x1, x25
++	create_bootstrap_mapping x0, x4, x5, x1, x2, x6, x10, x11, x12, x13
++	add x9, x2, #0xe00
++	MOV64 x10, (0x17c00000 | ARM_TTE_TYPE_BLOCK | ARM_TTE_VALID | ARM_TTE_BLOCK_AF | ARM_TTE_BLOCK_SH(SH_OUTER_MEMORY) | ARM_TTE_BLOCK_ATTRINDX(CACHE_ATTRINDX_DISABLE) | ARM_TTE_BLOCK_PNX | ARM_TTE_BLOCK_NX)
++	str x10, [x9]
  	UMI_TRACE 0x03, x2
-#endif
+ #endif
