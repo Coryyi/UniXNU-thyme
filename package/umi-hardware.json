@@ -1,14 +1,14 @@
 {
  "schema": 1,
- "device": "umi",
+ "device": "thyme",
  "soc": "SM8250",
- "model": "Qualcomm Technologies, Inc. xiaomi umi",
+ "model": "Qualcomm Technologies, Inc. xiaomi thyme",
  "compatible": [
   "qcom,kona-mtp",
   "qcom,kona",
   "qcom,mtp"
  ],
- "product_name": "Mi 10",
+ "product_name": "Mi 10S",
  "platform_chip_id": 356,
  "memory_banks": [
   {
@@ -103,10 +103,12 @@
   "source": "attempt-15 GOP; passed separately in boot_args, not an ADT display driver"
  },
  "sources": {
-  "running_dtb_sha256": "71a8d3db3360db2867ea99c2646a3e72f11aa6ee3e4f31cbbe1007579d90bbea",
+  "running_dtb_sha256": "3e1c76dd5936af4037fd17789a8bf0ef96b994204baa3508452b7dda3666fdcf",
   "evidence_snapshot": "20261020T040435517245Z",
   "uefi_baseline_attempt": 15,
   "uefi_fd_sha256": "e0acc39055bcfe5e349a5a5f405058a55d99a9f90c2b65c389ae37745156f9d6",
-  "uefi_console_sha256": "ee62de60d64a1dff110ec1ae3eb457307b1391a09e430fc0a96190546c6ddb83"
+  "uefi_console_sha256": "ee62de60d64a1dff110ec1ae3eb457307b1391a09e430fc0a96190546c6ddb83",
+  "current_evidence": "recovery-evidence/running.dtb, collected 2026-10-26",
+  "qualification_note": "Identity, memory banks, CPU affinities, PSCI, GIC addresses/stride and timer frequency/IRQ checked against thyme running.dtb. UEFI attempt hashes and framebuffer values remain inherited umi reference evidence, not thyme qualification."
  }
 }

@@ -99,8 +99,8 @@ bool NativeUfs::start(IOService *provider)
         needle=f"  native_ufs_root_step = {step};\n"
         root=root.replace(needle,needle+"  umi_native_ufs_checkpoint();\n")
     needle="  native_ufs_root_step = 3;\n"
-    root=root.replace(needle,needle+'''  if (layout->userdataFirst!=0x2c0000 || layout->userdataLast!=0x3b51ffa) {
-    rootDiagnosticFailure("userdata differs from umi baseline");
+    root=root.replace(needle,needle+'''  if (layout->userdataFirst!=0x2a8000 || layout->userdataLast!=0x3b037fa) {
+    rootDiagnosticFailure("userdata differs from measured thyme GPT");
     IOFree(layout,sizeof(RootLayout));
     return false;
   }
@@ -120,6 +120,14 @@ bool NativeUfs::start(IOService *provider)
     commands=commands.replace(old_signature,"uint32_t blocks, const void *src, bool fua = false)\n")
     assert commands.count("uint8_t cdb[10] = { 0x2a, 0,")==1
     commands=commands.replace("uint8_t cdb[10] = { 0x2a, 0,", "uint8_t cdb[10] = { 0x2a, uint8_t (fua ? 8 : 0),")
+    # Phone K1 may read GPT/root windows, but must never issue SCSI writes.
+    # Keep QEMU's separate persistence qualification profile unchanged.
+    submit_guard="  *ocs = 15;\n  if (!timeoutUs || dataBytes > kDataMax || (dataBytes & 3) ||\n"
+    if args.profile == "phone":
+        assert commands.count(submit_guard)==1
+        commands=commands.replace(submit_guard,
+            "  *ocs = 15;\n  if (direction == 1) return kIOReturnNotPrivileged;\n"
+            "  if (!timeoutUs || dataBytes > kDataMax || (dataBytes & 3) ||\n")
     (OUT/"RootCommands.h").write_text(commands)
     for name in ("UmiNativeUfsHost.inc","UmiNativeUfsTrace.inc","UmiSmmuTakeover.h"):
         shutil.copyfile(ROOT/"devices/umi/package"/name,OUT/name)
@@ -163,7 +171,10 @@ bool NativeUfs::start(IOService *provider)
             [Path(__file__),store_source,*(ROOT/"devices/umi/package"/n for n in
              ("UmiNativeUfsHost.inc","UmiNativeUfsTrace.inc","UmiSmmuTakeover.h","UmiUfsProbe.cpp"))]},
         "bindings":json.loads((OUT/"bindings.json").read_text()),
-        "hardware_tested":False,"root_mounted":False}
+        "hardware_tested":False,"root_mounted":False,
+        "userdata_geometry":{"first_lba":"0x2a8000","last_lba":"0x3b037fa","lba_bytes":4096},
+        "persistent_store_api_compiled":True,
+        "phone_scsi_write_guard":{"enabled":args.profile=="phone","blocked_direction":1}}
     (OUT/"build-report.json").write_text(json.dumps(report,indent=2)+"\n")
     print("Built official NativeUfsBlock with umi host adapter and qualified original storage bindings")
 

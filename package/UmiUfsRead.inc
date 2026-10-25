@@ -144,7 +144,7 @@ static void umiReadDisk()
   if(result==kIOReturnSuccess) {
     umi_ufs_read[29]=loadBe32(gHost.virt+kDataOffset);
     umi_ufs_read[30]=loadBe32(gHost.virt+kDataOffset+4);
-    if(umi_ufs_read[30]!=4096 || umi_ufs_read[29]<0x3b51ffa ||
+    if(umi_ufs_read[30]!=4096 || umi_ufs_read[29]<0x3b037fa ||
        umi_ufs_read[29]==UINT32_MAX) result=kIOReturnBadMedia;
   }
   if(!umiReadStep(13,result,"LUN0 geometry")) return;
@@ -154,8 +154,8 @@ static void umiReadDisk()
   umi_ufs_read[23]=layout.gptHeaderCrc;
   umi_ufs_read[24]=layout.gptEntriesCrc;
   // Cross-check the exact Android-collected partition bounds.
-  if(layout.userdataFirst!=0x2c0000 || layout.userdataLast!=0x3b51ffa) {
-    umiReadStep(14,kIOReturnBadMedia,"userdata differs from phone baseline"); return;
+  if(layout.userdataFirst!=0x2a8000 || layout.userdataLast!=0x3b037fa) {
+    umiReadStep(14,kIOReturnBadMedia,"userdata differs from measured thyme GPT"); return;
   }
   umiReadStep(15,kIOReturnSuccess,"GPT verified");
   IOLog("UMI UFS: real LUN0 read; GPT CRC valid; userdata=%llx..%llx manifest=%u windows=%u\n",

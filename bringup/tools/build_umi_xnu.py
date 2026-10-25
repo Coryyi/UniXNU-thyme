@@ -27,6 +27,7 @@ REFERENCES = {
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--out", type=Path, default=ROOT / "out/umi-xnu")
+    parser.add_argument("--defconfig", choices=("umi_defconfig", "thyme_k0_defconfig"), default="umi_defconfig")
     parser.add_argument("--stage", choices=("all", "bootstrap", "libraries", "kernel"), default="all")
     parser.add_argument("--early-trace", action="store_true",
                         help="build a separate umi entry diagnostic kernel with RAM-console markers")
@@ -97,8 +98,10 @@ def main():
     ]))
     ctx.work.mkdir(parents=True, exist_ok=True)
     if not ctx.config_path.exists():
-        shutil.copyfile(ctx.device / "configs/umi_defconfig", ctx.config_path)
+        shutil.copyfile(ctx.device / "configs" / args.defconfig, ctx.config_path)
         ctx = Context(ctx.args)
+    if ctx.config_path.read_bytes() != (ctx.device / "configs" / args.defconfig).read_bytes():
+        parser.error("existing workspace config differs; use a fresh output directory")
     modules = feeds.resolve(ctx)
     commits = feeds.fetch(ctx, modules, only=REFERENCES)
     feeds.lock_write(ctx, {**feeds.lock_read(ctx), **commits})
@@ -264,9 +267,11 @@ def main():
     if args.stage in ("all", "bootstrap"):
         # This pass supplies compile records and symbol tables for the real providers.
         # It is not a runnable kernel and is never packaged as a payload.
-        run("bootstrap", build, {k: "0" for k in (
+        bootstrap_settings = {k: "0" for k in (
             "XNU_SOURCE_CORECRYPTO14", "XNU_SOURCE_PTHREAD", "XNU_ARM_DT_PLATFORM",
-            "XNU_ARMCPU", "XNU_NATIVE_ARCH_TIMER", "XNU_BOOT_PROGRESS")})
+            "XNU_ARMCPU", "XNU_NATIVE_ARCH_TIMER", "XNU_BOOT_PROGRESS", "UMI_UFS_PROBE", "UMI_PMGR")}
+        bootstrap_settings["XNU_EXTRA_LD_ARCHIVES"] = ""
+        run("bootstrap", build, bootstrap_settings)
     if args.stage in ("all", "libraries"):
         run("corecrypto-plain", ["python3", "scripts/build-corecrypto-14.py"])
         run("corecrypto-namespace", ["python3", "scripts/build-corecrypto-14.py", "--namespace"])

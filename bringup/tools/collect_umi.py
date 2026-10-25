@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Read Mi 10 (umi) bring-up evidence and boot backups using an already-root ADB.
+"""Read Mi 10S (thyme) bring-up evidence and boot backups using an already-root ADB.
 
 No device writes, reboot, flashing, mounting or raw-memory reads. Binary reads
 are limited to boot-related partitions, the boot FDT/config, and primary GPTs.
@@ -60,10 +60,10 @@ READS = {
 
 
 def validate_identity(properties):
-    if (properties.get('ro.product.device') != 'umi'
+    if (properties.get('ro.product.device') != 'thyme'
             or properties.get('ro.board.platform') != 'kona'
             or properties.get('ro.soc.model') not in ('', 'SM8250')):
-        raise ValueError('Device is not verified as umi / kona / SM8250')
+        raise ValueError('Device is not verified as thyme / kona / SM8250')
 
 
 def gpt_header(block, sector_bytes):

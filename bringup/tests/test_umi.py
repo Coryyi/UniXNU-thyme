@@ -17,11 +17,11 @@ ANALYSIS_SPEC.loader.exec_module(analysis)
 
 class UmiGuardTests(unittest.TestCase):
     def test_accept_exact_device(self):
-        umi.validate_identity({'ro.product.device': 'umi', 'ro.board.platform': 'kona', 'ro.soc.model': 'SM8250'})
+        umi.validate_identity({'ro.product.device': 'thyme', 'ro.board.platform': 'kona', 'ro.soc.model': 'SM8250'})
 
     def test_reject_related_but_different_phone(self):
-        for device, platform, soc in (('cmi', 'kona', 'SM8250'), ('umi', 'taro', 'SM8450'),
-                                      ('mako', 'msm8960', ''), ('umi', 'kona', 'SM8550')):
+        for device, platform, soc in (('umi', 'kona', 'SM8250'), ('thyme', 'taro', 'SM8450'),
+                                      ('mako', 'msm8960', ''), ('thyme', 'kona', 'SM8550')):
             with self.assertRaises(ValueError):
                 umi.validate_identity({'ro.product.device': device, 'ro.board.platform': platform,
                                        'ro.soc.model': soc})

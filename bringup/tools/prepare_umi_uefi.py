@@ -140,7 +140,46 @@ def stage_darwinboot(uefi, package):
         raise ValueError("current upstream packed ramdisk header hash mismatch")
     shutil.copy2(packed, target / "Driver/PackedRamdisk.h")
     driver = target / "Driver/DarwinBoot.c"
-    text = driver.read_text()
+    text = driver.read_text(encoding="utf-8")
+    # ReadFile() allocates these buffers with AllocatePages().  Pool frees
+    # corrupt the boot-services allocator on firmware implementations that
+    # distinguish page and pool allocations (observed on thyme immediately
+    # after boot arguments were assembled).
+    page_frees = [
+        ("    FreePool (TrustCaches); TrustCaches = NULL;",
+         "    FreePages (TrustCaches, EFI_SIZE_TO_PAGES (TrustCacheSize)); TrustCaches = NULL;"),
+        ("  FreePool (Image); Image = NULL;",
+         "  FreePages (Image, EFI_SIZE_TO_PAGES (ImageSize)); Image = NULL;"),
+        ("  FreePool (Tree); Tree = NULL;",
+         "  FreePages (Tree, EFI_SIZE_TO_PAGES (TreeSize)); Tree = NULL;"),
+        ("  if (Image != NULL) { FreePool (Image); }",
+         "  if (Image != NULL) { FreePages (Image, EFI_SIZE_TO_PAGES (ImageSize)); }"),
+        ("  if (Tree != NULL) { FreePool (Tree); }",
+         "  if (Tree != NULL) { FreePages (Tree, EFI_SIZE_TO_PAGES (TreeSize)); }"),
+        ("  if (TrustCaches != NULL) { FreePool (TrustCaches); }",
+         "  if (TrustCaches != NULL) { FreePages (TrustCaches, EFI_SIZE_TO_PAGES (TrustCacheSize)); }"),
+    ]
+    for anchor, replacement in page_frees:
+        if text.count(anchor) != 1:
+            raise ValueError(f"unexpected DarwinBoot page allocation cleanup anchor: {anchor}")
+        text = text.replace(anchor, replacement, 1)
+
+    # This routine used BlockIo and Boot Services after ExitBootServices().
+    # The old size-based volume heuristic also risked writing an unrelated
+    # partition.  Keep all temporary tests read-only and make the hook inert.
+    splash_start = text.index("STATIC VOID ThymeSplashLog (VOID)")
+    splash_end = text.index("STATIC VOID ThymeArmWatchdog (UINT64 Ticks)", splash_start)
+    text = (text[:splash_start] +
+            "STATIC VOID ThymeSplashLog (VOID)\n{\n  // No BlockIo or Boot Services access after ExitBootServices().\n}\n\n" +
+            text[splash_end:])
+
+    # Console output after the final memory map can allocate and invalidate
+    # the map key.  The fixed framebuffer checkpoints below are allocation-free.
+    debug_start = text.find('  Print (L"DARWINBOOT: ARM64 va=')
+    debug_end = text.find("  for (Attempt = 0; Attempt < 3; Attempt++)", debug_start)
+    if debug_start < 0 or debug_end < 0:
+        raise ValueError("unexpected DarwinBoot final-map console block")
+    text = text[:debug_start] + text[debug_end:]
     changes = [
         ('    Print (L"DARWINBOOT: unsupported inputs or exception level; firmware retained\\n");',
          '    DEBUG ((DEBUG_ERROR, "UMI DARWINBOOT: unsupported request, EL%lu\\n", DarwinCurrentEl () >> 2));\n'),
@@ -162,8 +201,6 @@ def stage_darwinboot(uefi, package):
          '  DEBUG ((DEBUG_ERROR, "UMI DARWINBOOT: boot refused %r; firmware retained\\n", Status));\n'),
         ('    Loaded->Unload = Unload;',
          '    DEBUG ((DEBUG_ERROR, "UMI DARWINBOOT: loader v2 installed EL%lu\\n", DarwinCurrentEl () >> 2));\n'),
-        ('    if (!EFI_ERROR (Status)) {\n      DarwinEnter',
-         '    DEBUG ((DEBUG_ERROR, "UMI DARWINBOOT: ExitBootServices attempt %lu status %r\\n", (UINT64)Attempt, Status));\n'),
     ]
     for anchor, checkpoint in changes:
         if text.count(anchor) != 1:
@@ -189,7 +226,7 @@ def stage_darwinboot(uefi, package):
     if text.count(early_print) != 1:
         raise ValueError("unexpected DarwinBoot pre-console Print anchor")
     text = text.replace(early_print, "    // Registration is logged to ramoops before ConOut exists.")
-    driver.write_text(text)
+    driver.write_text(text, encoding="utf-8")
     inf = "DarwinBootPkg/Driver/DarwinBoot.inf"
     board = uefi / "Platforms/Xiaomi/umiPkg"
     dsc = board / "umi.dsc"

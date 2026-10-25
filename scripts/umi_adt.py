@@ -129,8 +129,8 @@ def hardware_path():
 
 def load_hardware():
     hardware = json.loads(hardware_path().read_text())
-    if (hardware["schema"], hardware["device"], hardware["soc"]) != (1, "umi", "SM8250"):
-        raise ValueError("not the qualified umi hardware profile")
+    if (hardware["schema"], hardware["device"], hardware["soc"]) != (1, "thyme", "SM8250"):
+        raise ValueError("not the qualified thyme hardware profile")
     banks = sorted(hardware["memory_banks"], key=lambda b: b["base"])
     end = 0
     for bank in banks:

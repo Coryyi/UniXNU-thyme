@@ -60,14 +60,14 @@ static uintptr_t map(uint64_t physical, uint64_t bytes, OSSharedPtr<IOMemoryMap>
   return hold ? hold->getVirtualAddress() : 0;
 }
 
-static bool isUmi(void)
+static bool isThyme(void)
 {
   // Product model retains the physical board identity when the root model
   // selects an iPad userspace compatibility profile.
   IORegistryEntry *root=IORegistryEntry::fromPath("/product",gIODTPlane);
   if (!root) return false;
   OSData *model=OSDynamicCast(OSData,root->getProperty("model"));
-  const char expected[]="Qualcomm Technologies, Inc. xiaomi umi";
+  const char expected[]="Qualcomm Technologies, Inc. xiaomi thyme";
   bool matches=model && model->getLength()==sizeof(expected) &&
     !memcmp(model->getBytesNoCopy(),expected,sizeof(expected));
   root->release();
@@ -76,7 +76,7 @@ static bool isUmi(void)
 #include "UmiUfsRead.inc"
 #endif
 
-extern "C" void umi_ufs_probe(void)
+static void umiInspectUfs(void)
 {
   unsigned mode=0;
   if (!PE_parse_boot_argn("umi-ufs-probe",&mode,sizeof(mode)) || !mode) return;
@@ -96,7 +96,7 @@ extern "C" void umi_ufs_probe(void)
   umi_ufs_checkpoint();
   IOLog("UMI UFS: QEMU hardware probe skipped\n");
 #else
-  if (!isUmi()) {
+  if (!isThyme()) {
     umi_ufs_observation[2]=3;
     umi_ufs_checkpoint();
     return;
@@ -159,5 +159,30 @@ extern "C" void umi_ufs_probe(void)
     umi_ufs_observation[13],umi_ufs_observation[12],umi_ufs_observation[14],
     umi_ufs_observation[20]);
   if(mode==2) umiReadDisk();
+#endif
+}
+
+// Optional, deliberate panic report for the existing on-screen panic renderer.
+// The probe body has returned; "THYME_UFS_REPORT" is a receipt, not a new fault.
+extern "C" void umi_ufs_probe(void)
+{
+  umiInspectUfs();
+#if UMI_UFS_PHONE
+  unsigned report=0;
+  PE_parse_boot_argn("thyme-ufs-report",&report,sizeof(report));
+  if (report==1 && umi_ufs_observation[0]) {
+    if (umi_ufs_read[0])
+      panic("THYME_UFS_REPORT intentional read=%llx status=%llx ocs=%llx scsi=%llx "
+            "smmu=%llx lba=%llx first=%llx last=%llx crc=%llx/%llx cap=%llx block=%llx",
+        umi_ufs_read[1],umi_ufs_read[2],umi_ufs_read[7],umi_ufs_read[8],
+        umi_ufs_smmu[23],umi_ufs_read[20],umi_ufs_read[21],umi_ufs_read[22],
+        umi_ufs_read[23],umi_ufs_read[24],umi_ufs_read[29],umi_ufs_read[30]);
+    panic("THYME_UFS_REPORT intentional observe=%llx status=%llx "
+          "gcc=%llx/%llx/%llx ver=%llx hcs=%llx hce=%llx db=%llx smmu=%llx streams=%llx",
+      umi_ufs_observation[1],umi_ufs_observation[2],umi_ufs_observation[4],
+      umi_ufs_observation[5],umi_ufs_observation[6],umi_ufs_observation[9],
+      umi_ufs_observation[10],umi_ufs_observation[11],umi_ufs_observation[14],
+      umi_ufs_observation[20],umi_ufs_observation[25]);
+  }
 #endif
 }

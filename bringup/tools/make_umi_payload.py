@@ -19,17 +19,18 @@ def sha(p):
 
 
 def make_payload(output_dir=None, diagnostic="payload"):
-    if diagnostic not in ("payload", "memory", "payload64", "xnu", "xnu-entry", "xnu-prelink"):
+    if diagnostic not in ("payload", "memory", "payload64", "xnu", "xnu-entry", "xnu-prelink", "xnu-k1"):
         raise ValueError("unknown diagnostic")
     out = Path(output_dir) if output_dir is not None else ROOT / "out/umi/payload"
     out.mkdir(parents=True, exist_ok=True)
     configs = {"payload": "unixnu.toml", "memory": "unixnu-memory.toml",
                "payload64": "unixnu-payload64.toml", "xnu": "unixnu-xnu.toml",
                "xnu-entry": "unixnu-xnu-entry.toml",
-               "xnu-prelink": "unixnu-xnu-prelink.toml"}
+               "xnu-prelink": "unixnu-xnu-prelink.toml",
+               "xnu-k1": "unixnu-xnu-k1.toml"}
     applications = {"payload": "UmiPayloadCheck.efi", "memory": "UmiMemoryDiag.efi",
                     "payload64": "UmiPayload64Check.efi"}
-    large = diagnostic in ("payload64", "xnu", "xnu-entry", "xnu-prelink")
+    large = diagnostic in ("payload64", "xnu", "xnu-entry", "xnu-prelink", "xnu-k1")
     size_mib = 64 if large else 8
     config = ROOT / "devices/umi/package" / configs[diagnostic]
     config_template = config
@@ -38,8 +39,8 @@ def make_payload(output_dir=None, diagnostic="payload"):
     trust_input = None
     data_input = None
     smp_profile = None
-    if diagnostic in ("xnu", "xnu-entry", "xnu-prelink"):
-        if diagnostic == "xnu-prelink":
+    if diagnostic in ("xnu", "xnu-entry", "xnu-prelink", "xnu-k1"):
+        if diagnostic in ("xnu-prelink", "xnu-k1"):
             from verify_umi_prelink import audit
         else:
             from verify_umi_xnu import audit
@@ -64,7 +65,7 @@ def make_payload(output_dir=None, diagnostic="payload"):
         if sha(adt) != adt_baseline["adt_sha256"]:
             raise ValueError("ADT differs from the host-validated baseline")
         adt_origin_sha = sha(adt)
-        if diagnostic == "xnu-prelink":
+        if diagnostic in ("xnu-prelink", "xnu-k1"):
             # Preserve the qualified hardware and software identity; refresh
             # only boot entropy. Never print the seed or identity fields.
             sys.path.insert(0, str(ROOT / "devices/umi/scripts"))
@@ -83,6 +84,11 @@ def make_payload(output_dir=None, diagnostic="payload"):
             if len(xnu_entries) != 1:
                 raise ValueError("Expected one XNU entry for explicit SMP policy")
             args = xnu_entries[0].get("args", "").split()
+            if diagnostic == "xnu-k1":
+                expected = {"-v", "keepsyms=1", "kt_fixed_zones=120", "native-ufs-root=1",
+                            "sheng-data-persist=0", "umi-user-log=0"}
+                if set(args) != expected or len(args) != len(expected):
+                    raise ValueError("K1 menu boot args differ from the minimal read-only allowlist")
             if "sheng-smp=1" in args:
                 if "armcpu-self-ipi=1" not in args or any(a.startswith("armcpu-spi-ipi=") and a != "armcpu-spi-ipi=0" for a in args):
                     raise ValueError("umi SMP requires SGI routing and the original self-IPI startup")
@@ -229,10 +235,10 @@ def make_payload(output_dir=None, diagnostic="payload"):
               "config_template_source": str(config_template),
               "config_template_sha256": sha(config_template),
               "application_not_in_firmware": True, "diagnostic": diagnostic}
-    if diagnostic in ("xnu", "xnu-entry", "xnu-prelink"):
+    if diagnostic in ("xnu", "xnu-entry", "xnu-prelink", "xnu-k1"):
         report["xnu"] = {"kernel": checked, "adt_sha256": sha(adt),
                          "adt_original_sha256": adt_origin_sha,
-                         "adt_only_entropy_refreshed": diagnostic == "xnu-prelink" and not checked.get("native_ufs"),
+                         "adt_only_entropy_refreshed": diagnostic in ("xnu-prelink", "xnu-k1") and not checked.get("native_ufs"),
                          "adt_storage_delta": (["darwinboot-memory-size", "root-matching"] if checked.get("native_ufs") else [])
                              + (["memory-map/TrustCache"] if trust_input else [])
                              + (["memory-map/PackedRAMDisk", "ephemeral-storage"] if data_input else []),
@@ -251,6 +257,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output-dir", type=Path,
                         help="isolated host output; default out/umi/payload")
-    parser.add_argument("--diagnostic", choices=("payload", "memory", "payload64", "xnu", "xnu-entry", "xnu-prelink"), default="payload")
+    parser.add_argument("--diagnostic", choices=("payload", "memory", "payload64", "xnu", "xnu-entry", "xnu-prelink", "xnu-k1"), default="payload")
     args = parser.parse_args()
     make_payload(args.output_dir, args.diagnostic)

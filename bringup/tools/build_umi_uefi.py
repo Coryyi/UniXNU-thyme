@@ -31,13 +31,17 @@ def verified(directory, name, metadata):
 def device_tree(evidence):
     report = json.loads((evidence / "report.json").read_text())
     identity = report["identity"]
-    if identity["ro.product.device"] != "umi" or identity["ro.soc.model"] != "SM8250":
+    if identity["ro.product.device"] != "thyme" or identity["ro.soc.model"] != "SM8250":
         raise ValueError("wrong device evidence")
     commandline = (evidence / "cmdline.txt").read_text()
-    for field, expected in (("dtb_idx", "0"), ("dtbo_idx", "11")):
+    for field, expected in (("dtb_idx", "0"),):
         found = re.search(rf"(?:^|\s)androidboot\.{field}=([^\s]+)", commandline)
         if not found or found[1] != expected:
             raise ValueError(f"unexpected observed {field}")
+    found = re.search(r"(?:^|\s)androidboot\.dtbo_idx=([^\s]+)", commandline)
+    if not found or not found[1].isdigit():
+        raise ValueError("missing observed dtbo_idx")
+    selected_overlay = int(found[1])
     boot = verified(evidence, "boot.img", report["artifacts"]["boot.img"])
     dtbo = verified(evidence, "dtbo.img", report["artifacts"]["dtbo.img"])
     live = verified(evidence, "running.dtb", report["artifacts"]["running.dtb"])
@@ -46,16 +50,23 @@ def device_tree(evidence):
     size = struct.unpack_from(">I", payload, 4)[0]
     base = payload[:size]
     fdt_nodes(base)
-    entry = dtbo_entries(dtbo)["entries"][11]
+    entries = dtbo_entries(dtbo)["entries"]
+    entry = next((item for item in entries if item["index"] == selected_overlay), None)
+    if entry is None:
+        raise ValueError(f"selected DTBO index {selected_overlay} is absent")
     overlay = dtbo[entry["file_offset"]:entry["file_offset"] + entry["bytes"]]
     out = ROOT / "out/umi/dtb"
     out.mkdir(parents=True, exist_ok=True)
     (out / "base0.dtb").write_bytes(base)
-    (out / "overlay11.dtbo").write_bytes(overlay)
+    overlay_path = out / f"overlay{selected_overlay}.dtbo"
+    overlay_path.write_bytes(overlay)
     merged = out / "umi-merged.dtb"
     subprocess.run(["fdtoverlay", "-i", str(out / "base0.dtb"), "-o", str(merged),
-                    str(out / "overlay11.dtbo")], check=True)
+                    str(overlay_path)], check=True)
     actual, running = fdt_nodes(merged.read_bytes()), fdt_nodes(live)
+    expected_model = b"Qualcomm Technologies, Inc. xiaomi thyme\0"
+    if actual["/"].get("model") != expected_model or running["/"].get("model") != expected_model:
+        raise ValueError("merged/live DT must both identify Xiaomi thyme")
     if actual["/"]["qcom,msm-id"] != running["/"]["qcom,msm-id"]:
         raise ValueError("merged SoC ID differs from observed live DT")
     checked = {}
@@ -67,7 +78,7 @@ def device_tree(evidence):
         checked[path] = reg_ranges(actual, path)
     provenance = {
         "evidence": str(evidence), "boot_sha256": sha(boot), "dtbo_sha256": sha(dtbo),
-        "base_index": 0, "overlay_index": 11, "base_sha256": sha(base),
+        "base_index": 0, "overlay_index": selected_overlay, "base_sha256": sha(base),
         "overlay_sha256": sha(overlay), "merged_sha256": sha(merged.read_bytes()),
         "checked_against_live": checked,
         "note": "Source DT + selected overlay, not the live DT. ABL runtime fixups remain untested.",
@@ -84,13 +95,13 @@ def main():
     parser.add_argument("--display-profile", choices=("vendor", "inherited"), default="vendor")
     parser.add_argument("--input-profile", choices=("none", "buttons", "touch"), default="none")
     parser.add_argument("--payload-profile", choices=("none", "ram"), default="none")
-    parser.add_argument("--ram-check", choices=("payload", "memory", "payload64", "xnu", "xnu-entry", "xnu-prelink"), default="payload")
+    parser.add_argument("--ram-check", choices=("payload", "memory", "payload64", "xnu", "xnu-entry", "xnu-prelink", "xnu-k1"), default="payload")
     parser.add_argument("--loader-profile", choices=("none", "darwinboot"), default="none")
     parser.add_argument("-j", type=int, default=4)
     args = parser.parse_args()
     if args.ram_check != "payload" and args.payload_profile != "ram":
         raise ValueError("RAM diagnostic requires RAM payload profile")
-    if args.ram_check in ("xnu", "xnu-entry", "xnu-prelink") and args.loader_profile != "darwinboot":
+    if args.ram_check in ("xnu", "xnu-entry", "xnu-prelink", "xnu-k1") and args.loader_profile != "darwinboot":
         raise ValueError("XNU payload requires DarwinBoot in the firmware")
     evidence = args.evidence.resolve(strict=True)
     if not args.pack_only:

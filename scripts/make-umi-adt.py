@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Generate umi's Apple-format ADT sidecar, without device I/O.
+"""Generate thyme's Apple-format ADT sidecar, without device I/O.
 
 Implements the UniXNU payload ADT CLI. Hardware addresses come from the
-qualified umi profile; the optional sheng iPad profile changes userspace
+thyme hardware profile; the optional sheng iPad profile changes userspace
 compatibility properties while retaining the physical board and its seed.
 SPDX-License-Identifier: BSD-2-Clause-Patent
 """
@@ -52,7 +52,7 @@ def main():
     # Private binary includes fresh entropy and an optional software identity.
     args.output.chmod(0o600)
     report = {
-        "format": "Apple device tree (not FDT)", "device": "umi",
+        "format": "Apple device tree (not FDT)", "device": hardware["device"],
         "adt_sha256": hashlib.sha256(blob).hexdigest(), "bytes": len(blob),
         "hardware_profile_sha256": hashlib.sha256(hardware_path().read_bytes()).hexdigest(),
         "hardware_sources": hardware["sources"], **summary(decoded),
@@ -66,7 +66,7 @@ def main():
         ],
     }
     args.output.with_name(args.output.name + ".json").write_text(json.dumps(report, indent=2) + "\n")
-    print(f"umi ADT: {len(blob)} bytes; {len(tree.at('/cpus').children)} CPU(s); "
+    print(f"{hardware['device']} ADT: {len(blob)} bytes; {len(tree.at('/cpus').children)} CPU(s); "
           f"GIC {report['gic_distributor']}/{report['gic_redistributor']}; host-validated only")
 
 

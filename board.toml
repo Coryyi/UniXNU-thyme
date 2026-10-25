@@ -1,4 +1,4 @@
-# Xiaomi Mi 10 / SM8250 device repository.
+# Xiaomi Mi 10S / SM8250-AC device repository.
 # This default file selects the minimal baseline; full phone status and profiles are in README.md and docs/BUILD.md.
 [board]
 name = "thyme"
@@ -40,9 +40,9 @@ fetch = ["KernelCache", "DeviceTree", "StaticTrustCache", "Cryptex1,SystemTrustC
 "044-76040-038.dmg" = "3f99b859c9728379110b66657c7b15285bcb1925ad8b5726542e2cdcf8b1028d"
 "044-76034-038.dmg" = "b4908cde41d23e6bc05e6af51a2c9eeb00cf0f863a6a18b1600c96a3fd70414f"
 
-# GPT geometry read and CRC-checked on this exact umi. The owner authorized
-# replacement of Android userdata on 2026-10-20. This is image preparation
-# metadata, not evidence that the XNU UFS transport/root mount works.
+# GPT geometry read and CRC-checked on this thyme on 2026-10-26.
+# Image preparation metadata only; this does not authorize partition writes
+# or prove that the XNU UFS transport/root mount works.
 [userdata]
 first_lba = 0x2a8000
 last_lba = 0x3b037fa

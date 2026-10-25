@@ -22,7 +22,13 @@ end=original.index('// Bring the live controller up for reading:',start)
     '#include "RootTransportLayout.h"\n'+original[start:end])
 commands=(upstream/'RootCommands.h').read_text()
 boundary=commands.index('// ---- Persistent store window')
-(out/'RootCommands.h').write_text(commands[:boundary])
+read_commands=commands[:boundary]
+anchor='  *ocs = 15;\n'
+if read_commands.count(anchor)!=1:
+    raise SystemExit('Unexpected hostSubmit layout: refusing an unguarded probe')
+read_commands=read_commands.replace(anchor,anchor+
+    '  if (direction == 1) return kIOReturnNotPrivileged; // thyme read-only probe\n')
+(out/'RootCommands.h').write_text(read_commands)
 assert 'hostWrite4k (' not in (out/'RootCommands.h').read_text()
 for name in ('RootTransportLayout.h','RootDiagnostics.h','RootQueue.h',
              'TransferPoll.h','RootLayout.h','LICENSE'):
@@ -66,7 +72,7 @@ subprocess.run(['xcrun','ar','rcs',str(archive),str(obj)],check=True)
 report={'phone':phone=='1','source_sha256':sha(source),'object_sha256':sha(obj),
  'archive_sha256':sha(archive),'script_sha256':sha(Path(__file__)),
  'actual_disassembly_checked':True,'disk_write_path':False,'dma_submission_path':phone=='1',
- 'contract_version':2,'smmu_host_test_passed':True,
+ 'blocked_scsi_direction':1,'contract_version':3,'smmu_host_test_passed':True,
  'sources':{name:sha(ROOT/'kits/umi'/name) for name in
    ('UmiUfsProbe.cpp','UmiUfsRead.inc','UmiSmmuTakeover.h','ufs-tests/UmiSmmuTakeover.cpp')},
  'upstream_sources':{name:sha(upstream/name) for name in

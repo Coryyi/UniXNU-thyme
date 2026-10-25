@@ -83,7 +83,8 @@ def main():
         compact_raw_cache(cache,board["ipsw"]["sha256"][cache.name])
         return
     geometry=board["userdata"]
-    assert (geometry["first_lba"],geometry["last_lba"],geometry["lba_bytes"])==(0x2c0000,0x3b51ffa,4096)
+    if geometry["lba_bytes"] != 4096 or geometry["last_lba"] < geometry["first_lba"]:
+        raise ValueError("Unsupported userdata geometry in board.toml")
     capacity=(geometry["last_lba"]-geometry["first_lba"]+1)*4096
     ctx=Context(upstream_parser().parse_args([
         "build","userdata","-D",str(ROOT/"devices/umi"),"--out",str(ROOT/"out/umi-xnu")]))
