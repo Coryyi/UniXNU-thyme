@@ -56,6 +56,8 @@ while i<len(args):
     i+=1
 command+=['-Wall','-Wextra','-Werror','-Wno-unused-parameter',
  '-Wno-c99-designator','-Wno-reorder-init-list','-Wno-deprecated-enum-enum-conversion',
+ # XNU OSSymbol is final but retains a virtual declaration; newer Xcode warns.
+ '-Wno-unnecessary-virtual-specifier',
  '-mgeneral-regs-only',f'-DUMI_UFS_PHONE={phone}','-I',str(ROOT/'.cache/xnu-work/osfmk'),
  '-I',str(out)]
 (out/'compile-command.json').write_text(json.dumps(command,indent=2)+'\n')
