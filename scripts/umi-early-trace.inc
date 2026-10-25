@@ -49,7 +49,7 @@
 	// recovery latency encodes the last trace phase (~10 s per phase).
 	mov	x14, #0x10
 	movk	x14, #0x17C1, lsl #16
-	orr	x15, xzr, x9, lsl #23
+	orr	x15, xzr, x9, lsl #26
 	str	x15, [x14]
 	str	x15, [x14, #4]
 	mov	w16, #1
