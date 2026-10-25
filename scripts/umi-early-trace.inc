@@ -28,7 +28,7 @@
 .macro THYME_BAND
 	// thyme: paint up to 4 sub-bands (64 KiB each) at 0x9C700000,
 	// one per set bit of the phase - read them as a binary number.
-	mov	x14, #0x9C70, lsl #16
+	movz	x14, #0x9C70, lsl #16
 	mov	x15, #0x10000
 	mov	x16, #4
 1:
