@@ -26,21 +26,28 @@
 
 /* x9=phase, x10=value, x11=console header. Preserve x0..x8, x18..x30. */
 .macro THYME_BAND
-	/* thyme: paint a 512 KiB band at 0x9C400000 + phase*0x80000 on the
-	   inherited splash framebuffer. Pre-MMU callers store physically
-	   (dcache off); post-MMU callers rely on the uncached framebuffer
-	   block mapped next to the console mapping in start.s. */
-	movz	x14, #0x9C70, lsl #16
-	add	x14, x14, x9, lsl #19
-	orr	x15, xzr, x9
-	orr	x15, x15, x15, lsl #8
-	orr	x15, x15, x15, lsl #16
-	orr	x15, x15, x15, lsl #32
-	mov	x16, #0x8000
-91:
-	stp	x15, x15, [x14], #16
+	// thyme: paint up to 4 sub-bands (64 KiB each) at 0x9C700000,
+	// one per set bit of the phase - read them as a binary number.
+	mov	x14, #0x9C70, lsl #16
+	mov	x15, #0x10000
+	mov	x16, #4
+1:
+	lsr	x17, x9, x16
+	tst	x17, #1
+	b.eq	2f
+	orr	x17, xzr, x9
+	orr	x17, x17, x17, lsl #8
+	orr	x17, x17, x17, lsl #16
+	orr	x17, x17, x17, lsl #32
+	mov	x12, #0x1000
+3:
+	stp	x17, x17, [x14], #16
+	subs	x12, x12, #1
+	b.ne	3b
+2:
+	add	x14, x14, x15
 	subs	x16, x16, #1
-	b.ne	91b
+	b.ne	1b
 .endm
 
 .macro UMI_TRACE_BODY
@@ -51,7 +58,7 @@
 	b.lo	98f
 	mov	x14, #0x10
 	movk	x14, #0x17C1, lsl #16
-	orr	x15, xzr, x9, lsl #23
+	movz	x15, #0x4C4B, lsl #16
 	str	x15, [x14]
 	str	x15, [x14, #4]
 	mov	w16, #1
