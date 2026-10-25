@@ -40,7 +40,9 @@ subprocess.run(['clang++','-std=c++17','-Wall','-Wextra','-Werror',
 with (out/'smmu-host-test.log').open('w') as log:
     subprocess.run([str(out/'smmu-host-test')],stdout=log,stderr=subprocess.STDOUT,check=True)
 record=json.loads((ROOT/'build/xnu/ios-obj/DEVELOPMENT_ARM64_BCM2837/iokit/DEVELOPMENT/IOPlatformExpert.cpo.json').read_text().strip().rstrip(','))
-phone=os.environ.get('UMI_EARLY_TRACE','0')
+phone=os.environ.get('UMI_UFS_PHONE',os.environ.get('UMI_EARLY_TRACE','0'))
+ram_trace=os.environ.get('UMI_EARLY_TRACE','0')
+assert ram_trace in ('0','1')
 assert phone in ('0','1') and os.environ.get('UMI_UFS_PROBE')=='1'
 args=record['arguments']
 command=[]
@@ -58,7 +60,7 @@ command+=['-Wall','-Wextra','-Werror','-Wno-unused-parameter',
  '-Wno-c99-designator','-Wno-reorder-init-list','-Wno-deprecated-enum-enum-conversion',
  # XNU OSSymbol is final but retains a virtual declaration; newer Xcode warns.
  '-Wno-unnecessary-virtual-specifier',
- '-mgeneral-regs-only',f'-DUMI_UFS_PHONE={phone}','-I',str(ROOT/'.cache/xnu-work/osfmk'),
+ '-mgeneral-regs-only',f'-DUMI_UFS_PHONE={phone}',f'-DUMI_UFS_RAM_TRACE={ram_trace}','-I',str(ROOT/'.cache/xnu-work/osfmk'),
  '-I',str(out)]
 (out/'compile-command.json').write_text(json.dumps(command,indent=2)+'\n')
 r=subprocess.run(command,cwd=record['directory'],text=True,capture_output=True)
@@ -71,7 +73,7 @@ assert not re.search(r'\bmsr\s+(?:tcr|ttbr|sctlr)',text,re.I), 'Translation muta
 archive=out/'libUmiUfsProbe.a'
 archive.unlink(missing_ok=True)
 subprocess.run(['xcrun','ar','rcs',str(archive),str(obj)],check=True)
-report={'phone':phone=='1','source_sha256':sha(source),'object_sha256':sha(obj),
+report={'phone':phone=='1','ram_console_trace':ram_trace=='1','source_sha256':sha(source),'object_sha256':sha(obj),
  'archive_sha256':sha(archive),'script_sha256':sha(Path(__file__)),
  'actual_disassembly_checked':True,'disk_write_path':False,'dma_submission_path':phone=='1',
  'blocked_scsi_direction':1,'contract_version':3,'smmu_host_test_passed':True,

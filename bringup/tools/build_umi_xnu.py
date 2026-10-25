@@ -43,6 +43,8 @@ def main():
                         help="build the complete official sheng diagnostic with umi provider adaptation")
     parser.add_argument("--ufs-probe", action="store_true",
                         help="include gated umi UFS inspection and read-only storage bring-up")
+    parser.add_argument("--ufs-screen-report", action="store_true",
+                        help="phone probe without RAM-console instrumentation; requires separate panic-screen packaging")
     parser.add_argument("--native-ufs", action="store_true",
                         help="include official NativeUfsBlock with umi transport and full signed policies")
     parser.add_argument("--owner-root", choices=("off", "audit", "trust"), default="off",
@@ -68,8 +70,10 @@ def main():
         parser.error("phone GIC diagnostics require --early-trace")
     if args.screen_diagnostics and not args.gic_diagnostics:
         parser.error("screen diagnostics require the qualified GIC observer")
-    if args.ufs_probe and args.profile == "phone" and not args.early_trace:
-        parser.error("phone UFS inspection requires --early-trace")
+    if args.ufs_screen_report and (not args.ufs_probe or args.profile != "phone" or args.early_trace):
+        parser.error("screen-report mode requires a phone UFS probe without early RAM trace")
+    if args.ufs_probe and args.profile == "phone" and not (args.early_trace or args.ufs_screen_report):
+        parser.error("phone UFS inspection requires --early-trace or --ufs-screen-report")
     if args.native_ufs and (args.ufs_probe or args.crypto_bootstrap != "prelinked"):
         parser.error("native UFS requires prelinked crypto and exclusive ownership of the transport")
     if args.owner_root != "off" and not args.native_ufs:
@@ -126,6 +130,7 @@ def main():
                 "UMI_EARLY_TRACE": str(int(args.early_trace)),
                 "UMI_PMGR": str(int(args.pmgr)),
                 "UMI_UFS_PROBE": str(int(args.ufs_probe)),
+                "UMI_UFS_PHONE": str(int(args.profile == "phone")),
                 "UMI_FULL_BOOT_PROGRESS": str(int(args.screen_diagnostics)),
                 "XNU_BOOT_PROGRESS": str(int(args.screen_diagnostics))}
     if args.pmgr:
@@ -175,7 +180,7 @@ def main():
     (logdir / "environment.json").write_text(json.dumps(settings, indent=2) + "\n")
     report = {"stage": args.stage, "log_directory": str(logdir), "steps": [],
               "prelinked": False, "hardware_tested": False, "early_trace": args.early_trace,
-              "profile": args.profile, "crypto_bootstrap": settings["XNU_CRYPTO_BOOTSTRAP"],
+              "ufs_screen_report": args.ufs_screen_report, "profile": args.profile, "crypto_bootstrap": settings["XNU_CRYPTO_BOOTSTRAP"],
               "pmgr": args.pmgr, "gic_diagnostics": args.gic_diagnostics,
               "screen_diagnostics": args.screen_diagnostics, "ufs_probe": args.ufs_probe}
     report["native_ufs"] = args.native_ufs

@@ -19,6 +19,9 @@ libUmiUfsProbe.a, then links a source-only kernel. No IPSW, UEFI checkout,
 historical QEMU receipt or full IOStorageFamily ABI snapshot is needed here.
 The source build runs the existing SMMU host harness and instruction audits.
 The output is a kernel and receipts, not a bootable Android image.
+The source-only profile uses --ufs-screen-report: the phone transport is enabled
+while old physical RAM-console trace/mapping code stays disabled. It preserves
+the measured K0 entry path; panic-only packaging supplies visible receipts.
 
 ## Packaging and temporary phone experiment
 

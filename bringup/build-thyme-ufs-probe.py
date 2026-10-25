@@ -54,7 +54,7 @@ def main():
     }
     (workspace / "probe-inputs.json").write_text(json.dumps(record, indent=2) + "\n")
     subprocess.run([sys.executable, str(workspace / "tools/build_umi_xnu.py"),
-                    "--defconfig", "thyme_k0_defconfig", "--early-trace", "--ufs-probe",
+                    "--defconfig", "thyme_k0_defconfig", "--ufs-screen-report", "--ufs-probe",
                     "--crypto-bootstrap", "source", "-j", str(args.jobs)], check=True)
 
 

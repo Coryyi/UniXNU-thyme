@@ -12,17 +12,20 @@
 #ifndef UMI_UFS_PHONE
 #error Select the phone or QEMU build explicitly
 #endif
+#ifndef UMI_UFS_RAM_TRACE
+#define UMI_UFS_RAM_TRACE UMI_UFS_PHONE
+#endif
 
 extern "C" {
 volatile uint64_t umi_ufs_observation[32];
 volatile uint64_t umi_ufs_streams[128][3];
-#if UMI_UFS_PHONE
+#if UMI_UFS_RAM_TRACE
 void umi_early_trace(uint64_t, uint64_t, uint64_t);
 extern uint64_t umi_trace_console_address;
 #endif
 static void umi_ufs_emit(volatile uint64_t *values)
 {
-#if UMI_UFS_PHONE
+#if UMI_UFS_RAM_TRACE
   uint64_t daif;
   __asm__ volatile("mrs %0,daif\n\tmsr daifset,#3" : "=r"(daif) :: "memory");
   if (umi_trace_console_address)
