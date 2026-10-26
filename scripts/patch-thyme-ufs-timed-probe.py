@@ -172,7 +172,7 @@ park:
         'position': args.position, 'delay_seconds': args.delay,
         'result_delay_seconds': result_delay,
         'encode_ready_flags': args.encode_ready_flags,
-        'success_predicate': f"{('umi_ufs_read' if args.force_mode == 2 else 'umi_ufs_observation')}[1] == {(15 if args.force_mode == 2 else 5)} && [2] == 0",
+        'success_predicate': f"{('umi_ufs_read' if args.force_mode == 2 else 'umi_ufs_observation')}[1] == {(args.mode2_success_phase if args.force_mode == 2 else 5)} && [2] == 0",
         'call_site': hex(site), 'callee': hex(callee), 'original_call_word': hex(original_word),
         'cave': hex(cave), 'code_bytes': len(code),
         'entry_and_mmu_instructions_changed': False,
@@ -180,7 +180,7 @@ park:
         'forced_mode': args.force_mode,
         'forced_mode_scope': 'after variant only; parser result ignored and local mode set explicitly; thyme identity check preserved',
         'observation_array': ('umi_ufs_read' if args.force_mode == 2 else 'umi_ufs_observation'),
-        'completion_phase': (15 if args.force_mode == 2 else 5),
+        'completion_phase': (args.mode2_success_phase if args.force_mode == 2 else 5),
         'required_args': ['umi-ufs-probe=1', 'thyme-ufs-report=0'],
         'hmac_reseal_required': True, 'hardware_tested': False,
     }
