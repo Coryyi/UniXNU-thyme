@@ -85,7 +85,7 @@ static bool hostBringUp(const char **why)
   gRootDiagnostic.stage="LUN capacity";
   uint8_t capacity[10]={0x25}; uint32_t scsi=0;
   if (hostScsi(0,capacity,10,true,8,200000,&scsi)!=kIOReturnSuccess ||
-      loadBe32(gHost.virt+kDataOffset)!=0x3b51fff ||
+      loadBe32(gHost.virt+kDataOffset)!=0x3b037ff ||
       loadBe32(gHost.virt+kDataOffset+4)!=4096) {
     *why="LUN geometry differs from hardware baseline"; return false;
   }
