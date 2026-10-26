@@ -158,6 +158,25 @@ static void umiReadDisk()
     umiReadStep(14,kIOReturnBadMedia,"userdata differs from measured thyme GPT"); return;
   }
   umiReadStep(15,kIOReturnSuccess,"GPT verified");
+  // Compare the full primary GPT header block against the saved root-ADB
+  // Recovery capture. Android can modify userdata metadata on each boot, so
+  // do not pin its first block as a cross-boot identity sample.
+  if(!umiReadStep(16,hostRead4k(0,1,1,gScratch),"GPT sample read")) return;
+  static const uint8_t expected[32]={
+    0xcf,0xe1,0x6c,0x81,0x18,0x2c,0x09,0x31,
+    0xe3,0xe5,0x9a,0xa9,0x3d,0xcd,0x54,0x4f,
+    0xf5,0x14,0xf7,0x77,0xd4,0xcd,0x81,0xdc,
+    0x41,0xba,0xe1,0xb5,0xa5,0xdd,0xab,0x71
+  };
+  SHA256_CTX context;
+  uint8_t digest[32];
+  SHA256_Init(&context);
+  SHA256_Update(&context,gScratch,4096);
+  SHA256_Final(digest,&context);
+  if(memcmp(digest,expected,sizeof(expected))) {
+    umiReadStep(16,kIOReturnBadMedia,"GPT sample differs from Recovery"); return;
+  }
+  umiReadStep(16,kIOReturnSuccess,"Recovery GPT sample verified");
   IOLog("UMI UFS: real LUN0 read; GPT CRC valid; userdata=%llx..%llx manifest=%u windows=%u\n",
     layout.userdataFirst,layout.userdataLast,layout.manifestStatus,layout.windows);
 }

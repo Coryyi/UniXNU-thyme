@@ -25,6 +25,8 @@ def main():
     parser.add_argument('--delay', type=int, choices=(3, 9), required=True)
     parser.add_argument('--force-mode', type=int, choices=(1, 2), default=1,
                         help='diagnostic copy only; bypass missing UEFI boot arg and set the probe local mode')
+    parser.add_argument('--mode2-success-phase', type=int, choices=(15, 16), default=15,
+                        help='16 also requires the Recovery first-block SHA-256 comparison')
     parser.add_argument('--encode-ready-flags', action='store_true',
                          help='after successful mode 1, encode HCS/HCE/SMMU readiness in 4-second steps')
     args = parser.parse_args()
@@ -77,7 +79,7 @@ def main():
     body = ''
     if args.position == 'after':
         observation = names['_umi_ufs_read'] if args.force_mode == 2 else names['_umi_ufs_observation']
-        phase_success = 15 if args.force_mode == 2 else 5
+        phase_success = args.mode2_success_phase if args.force_mode == 2 else 5
         body = '''  bl callee
   dsb sy
   ldr x9, =observation

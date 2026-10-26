@@ -45,5 +45,8 @@ out. Controller-register writes still occur in mode 2.
 
 Accept mode 2 only if read stage 15 succeeds, the GPT CRCs match independently
 collected evidence and userdata bounds are 0x2a8000..0x3b037fa with 4096-byte LBAs.
+A stage 16 success additionally SHA-256 checks the 4096-byte primary GPT header
+block at LBA 1 against the root ADB Recovery capture from this exact handset.
+The pinned digest is in UmiUfsRead.inc; it is invalid if the GPT changes.
 A missing Apple root manifest on the Android partition is expected.
 Use temporary fastboot boot only; no partition flashing is part of this recipe.
