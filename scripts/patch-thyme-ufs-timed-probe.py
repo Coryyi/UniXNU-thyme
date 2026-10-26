@@ -23,9 +23,13 @@ def main():
     parser.add_argument('--source-sha256', required=True)
     parser.add_argument('--position', choices=('before', 'after'), required=True)
     parser.add_argument('--delay', type=int, choices=(3, 9), required=True)
+    parser.add_argument('--force-mode', type=int, choices=(1, 2), default=1,
+                        help='diagnostic copy only; bypass missing UEFI boot arg and set the probe local mode')
     parser.add_argument('--encode-ready-flags', action='store_true',
                          help='after successful mode 1, encode HCS/HCE/SMMU readiness in 4-second steps')
     args = parser.parse_args()
+    if args.encode_ready_flags and (args.position != 'after' or args.force_mode != 1):
+        parser.error('--encode-ready-flags requires --position after --force-mode 1')
     if args.output.exists() or args.output.resolve() == args.source.resolve():
         parser.error('output must be a new kernel copy')
     data = bytearray(args.source.read_bytes())
@@ -67,17 +71,19 @@ def main():
         expected_guard = struct.unpack_from('<I', data, probe.file_offset(parse_guard))[0]
         if expected_load != 0xB85CC3A8 or expected_guard != 0x540012C0:
             parser.error('UFS boot-argument prologue changed; refusing forced mode patch')
-        struct.pack_into('<I', data, probe.file_offset(mode_load), 0x52800028)  # mov w8,#1
+        struct.pack_into('<I', data, probe.file_offset(mode_load), 0x52800008 | (args.force_mode << 5))
         struct.pack_into('<I', data, probe.file_offset(parse_guard), 0xD503201F)  # nop
         forced_mode_sites = [hex(mode_load), hex(parse_guard)]
     body = ''
     if args.position == 'after':
+        observation = names['_umi_ufs_read'] if args.force_mode == 2 else names['_umi_ufs_observation']
+        phase_success = 15 if args.force_mode == 2 else 5
         body = '''  bl callee
   dsb sy
   ldr x9, =observation
   ldr x10, [x9, #8]
   ldr x11, [x9, #16]
-  cmp x10, #5
+''' + f'''  cmp x10, #{phase_success}
   b.ne encode_result
   cbnz x11, encode_result
 '''
@@ -103,15 +109,28 @@ def main():
   madd x2, x10, x12, x2
   b start_wait
 '''
-    assembly = '.text\n.global _start\n_start:\n' + body + f'''  ldr x2, ={args.delay * 19200000}
-  b start_wait
-encode_result:
-  ldr x2, ={args.delay * 19200000}
+    if args.position == 'after' and args.force_mode == 2:
+        encode_failure = '''  ldr x2, =BASE_TICKS
+  ldr x12, =76800000
+  madd x2, x10, x12, x2
+  cmp x11, #0
+  cset x11, ne
+  ldr x12, =19200000
+  madd x2, x11, x12, x2
+'''.replace('BASE_TICKS', str(args.delay * 19200000))
+        result_delay = f'{args.delay} + phase*4 + (status!=0 ? 1 : 0)'
+    else:
+        encode_failure = f'''  ldr x2, ={args.delay * 19200000}
   ldr x12, =230400000
   madd x2, x10, x12, x2
   ldr x12, =38400000
   madd x2, x11, x12, x2
-start_wait:
+'''
+        result_delay = ('success: base + 4*ready_flags; bit0=HCS.DEVICE_PRESENT, bit1=HCS.UCRDY, bit2=HCE.ENABLE, bit3=SMMU stream count>0' if args.encode_ready_flags else f'{args.delay} + stage*12 + status*2 (timer ticks at 19.2MHz)')
+    assembly = '.text\n.global _start\n_start:\n' + body + f'''  ldr x2, ={args.delay * 19200000}
+  b start_wait
+encode_result:
+{encode_failure}start_wait:
   msr daifset, #3
   isb
   mrs x1, cntpct_el0
@@ -134,7 +153,7 @@ park:
 '''
     with tempfile.TemporaryDirectory() as directory:
         work = Path(directory)
-        code = probe.assemble(assembly, cave, {'callee': callee, 'observation': names['_umi_ufs_observation']}, work)
+        code = probe.assemble(assembly, cave, {'callee': callee, 'observation': observation}, work)
         disassembly = subprocess.check_output(['llvm-objdump', '-d', str(work / 'cave.elf')], text=True)
     if len(code) > 512:
         parser.error('reset thunk exceeds reserved padding')
@@ -149,14 +168,17 @@ park:
         'source_sha256': args.source_sha256,
         'unsealed_output_sha256': hashlib.sha256(data).hexdigest(),
         'position': args.position, 'delay_seconds': args.delay,
-        'result_delay_seconds': ('success: base + 4*ready_flags; bit0=HCS.DEVICE_PRESENT, bit1=HCS.UCRDY, bit2=HCE.ENABLE, bit3=SMMU stream count>0' if args.encode_ready_flags else f'{args.delay} + stage*12 + status*2 (timer ticks at 19.2MHz)'),
+        'result_delay_seconds': result_delay,
         'encode_ready_flags': args.encode_ready_flags,
-        'success_predicate': 'umi_ufs_observation[1] == 5 && umi_ufs_observation[2] == 0',
+        'success_predicate': f"{('umi_ufs_read' if args.force_mode == 2 else 'umi_ufs_observation')}[1] == {(15 if args.force_mode == 2 else 5)} && [2] == 0",
         'call_site': hex(site), 'callee': hex(callee), 'original_call_word': hex(original_word),
         'cave': hex(cave), 'code_bytes': len(code),
         'entry_and_mmu_instructions_changed': False,
-        'forced_mode1_sites': forced_mode_sites,
-        'forced_mode1_scope': 'after variant only; parser result ignored and local mode set to 1; thyme and MMIO safety checks preserved',
+        'forced_mode_sites': forced_mode_sites,
+        'forced_mode': args.force_mode,
+        'forced_mode_scope': 'after variant only; parser result ignored and local mode set explicitly; thyme identity check preserved',
+        'observation_array': ('umi_ufs_read' if args.force_mode == 2 else 'umi_ufs_observation'),
+        'completion_phase': (15 if args.force_mode == 2 else 5),
         'required_args': ['umi-ufs-probe=1', 'thyme-ufs-report=0'],
         'hmac_reseal_required': True, 'hardware_tested': False,
     }
