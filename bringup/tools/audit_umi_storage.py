@@ -17,8 +17,9 @@ import native_prelink as np
 parser=argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--candidate',required=True,type=Path)
 parser.add_argument('--snapshot',type=Path)
+parser.add_argument('--tree',type=Path,help='source build tree (defaults to the legacy umi workspace)')
 args=parser.parse_args()
-TREE=ROOT/'out/umi-xnu/umi/tree'
+TREE=args.tree.resolve() if args.tree else ROOT/'out/umi-xnu/umi/tree'
 source = ROOT / 'out/umi-xnu/IOStorageFamily'
 revision = subprocess.check_output(['git', '-C', source, 'rev-parse', 'HEAD'], text=True).strip()
 if revision != 'e45fbe30a7879e0b16e26dddb78538f1b00e0bff':
@@ -198,6 +199,13 @@ static=dict(candidate=str(kernel_path),candidate_sha256=plan['candidate_sha256']
     compiled_metaclass_offsets=layout,method_slots=190,kernel_bindings=matched,
     original_protected_constructor=hex(constructors[0][0]),original_base_destructor=hex(destructor),
     vtable=hex(table),live_native_4k=False,hardware_tested=False,
+    public_source_revision=revision, compiled_public_class_size=int(class_size[1],16),
+    pure_virtual_slots=14, abstract_complete_destructors_trap=True,
+    original_executable_code_unchanged=True,
+    reference_object_sha256=hashlib.sha256(obj).hexdigest(),
+    reference_object_executed_or_linked=False,
+    methods=[dict(slot=i,reference_name=name,candidate_target=hex(pointers[i]),kernel_names=exports.get(pointers[i],[]))
+             for i,name in enumerate(methods)],
     upstream_script_sha256=hashlib.sha256((ROOT/'sources/UniXNU/scripts/audit-storage-interface.py').read_bytes()).hexdigest())
 (out/'static-audit.json').write_text(json.dumps(static,indent=2)+'\n')
 if not args.snapshot:
