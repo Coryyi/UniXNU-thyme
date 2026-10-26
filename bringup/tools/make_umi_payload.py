@@ -205,6 +205,16 @@ def make_payload(output_dir=None, diagnostic="payload"):
             proof.write_bytes(random.Random(0x554D4932).randbytes(60 * 1024 * 1024))
             (payloads / "proof-large.sha256").write_text(sha(proof), encoding="ascii")
         (payloads.parent / "unixnu.toml").write_bytes(config_bytes)
+        if diagnostic in ("xnu", "xnu-entry", "xnu-prelink", "xnu-k1"):
+            import tomllib
+            xnu_entries = [entry for entry in tomllib.loads(config_bytes.decode()).get("entry", [])
+                           if entry.get("type") == "xnu"]
+            if len(xnu_entries) != 1:
+                raise ValueError("Expected one XNU entry for the automatic boot arguments")
+            boot_args = xnu_entries[0].get("args", "").encode("ascii")
+            if not boot_args or len(boot_args) > 1023 or any(c < 0x20 or c > 0x7e for c in boot_args):
+                raise ValueError("Automatic boot arguments must be printable ASCII, at most 1023 bytes")
+            (payloads.parent / "boot-args.txt").write_bytes(boot_args)
         for path in sorted(stage.rglob("*"), reverse=True):
             os.utime(path, (315532800, 315532800))
         os.utime(stage, (315532800, 315532800))
