@@ -70,6 +70,7 @@ while i < len(arguments):
     i += 1
 command += ['-Wall', '-Wextra', '-Werror', '-Wno-unused-parameter', '-Wno-c99-designator',
             '-Wno-reorder-init-list', '-Wno-deprecated-enum-enum-conversion',
+            '-Wno-unnecessary-virtual-specifier',
             '-I', OUT, '-I', ROOT / '.cache/xnu-work/osfmk']
 (OUT / 'compile-command.json').write_text(json.dumps([str(v) for v in command], indent=2) + '\n')
 run(command, cwd=record['directory'])

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Compile the official VerifiedRoot XNU provider and both verified root policies."""
 import hashlib
+import argparse
 import json
 from pathlib import Path
 import subprocess
@@ -9,6 +10,9 @@ import sys
 from build_umi_native_ufs import ROOT, TREE, UP, compile_from
 
 def main():
+    parser=argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--samples',type=Path,help='four fixed OS samples, each padded to 4096 bytes; checked against the signed hash table')
+    args=parser.parse_args()
     policy=ROOT/"out/umi/root-policy"
     out=TREE/"build/umi-root-policy"
     out.mkdir(parents=True,exist_ok=True)
@@ -30,14 +34,26 @@ def main():
     count=(os["size"]+4095)//4096
     indices=[0,1,count//2,count-1]
     lengths=[]
-    with Path(disk["image"]).open("rb") as stream, (out/"samples.bin").open("wb") as selected:
-        for i in indices:
+    if args.samples:
+        samples=args.samples.read_bytes()
+        manifest_bytes=(policy/"OS/manifest.bin").read_bytes()
+        assert len(samples)==len(indices)*4096
+        for slot,i in enumerate(indices):
             n=min(4096,os["size"]-i*4096)
-            stream.seek(os["offset"]+i*4096)
-            data=stream.read(n)
-            assert len(data)==n
-            selected.write(data+bytes(4096-n))
+            data=samples[slot*4096:(slot+1)*4096]
+            assert data[n:]==bytes(4096-n)
+            assert hashlib.sha256(data[:n]).digest()==manifest_bytes[544+i*32:544+(i+1)*32]
             lengths.append(n)
+        (out/"samples.bin").write_bytes(samples)
+    else:
+        with Path(disk["image"]).open("rb") as stream, (out/"samples.bin").open("wb") as selected:
+            for i in indices:
+                n=min(4096,os["size"]-i*4096)
+                stream.seek(os["offset"]+i*4096)
+                data=stream.read(n)
+                assert len(data)==n
+                selected.write(data+bytes(4096-n))
+                lengths.append(n)
     assert lengths==[4096,4096,4096,1536]
     manifest=policy/"OS/manifest.bin"; extra=policy/"SystemOS/manifest.bin"
     assembly=f'''

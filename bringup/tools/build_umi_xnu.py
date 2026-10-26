@@ -47,6 +47,7 @@ def main():
                         help="phone probe without RAM-console instrumentation; requires separate panic-screen packaging")
     parser.add_argument("--native-ufs", action="store_true",
                         help="include official NativeUfsBlock with umi transport and full signed policies")
+    parser.add_argument("--root-samples", type=Path, help="checked fixed OS samples for offline policy bundling")
     parser.add_argument("--owner-root", choices=("off", "audit", "trust"), default="off",
                         help="official mounted-media binding with NativeAES and verified VirtIO/UFS")
     parser.add_argument("--systemos", action="store_true",
@@ -76,6 +77,8 @@ def main():
         parser.error("phone UFS inspection requires --early-trace or --ufs-screen-report")
     if args.native_ufs and (args.ufs_probe or args.crypto_bootstrap != "prelinked"):
         parser.error("native UFS requires prelinked crypto and exclusive ownership of the transport")
+    if args.root_samples and not args.native_ufs:
+        parser.error("root samples require native UFS")
     if args.owner_root != "off" and not args.native_ufs:
         parser.error("owner root requires the complete verified storage configuration")
     if args.systemos and args.owner_root != "trust":
@@ -274,7 +277,8 @@ def main():
         # It is not a runnable kernel and is never packaged as a payload.
         bootstrap_settings = {k: "0" for k in (
             "XNU_SOURCE_CORECRYPTO14", "XNU_SOURCE_PTHREAD", "XNU_ARM_DT_PLATFORM",
-            "XNU_ARMCPU", "XNU_NATIVE_ARCH_TIMER", "XNU_BOOT_PROGRESS", "UMI_UFS_PROBE", "UMI_PMGR")}
+            "XNU_ARMCPU", "XNU_NATIVE_ARCH_TIMER", "XNU_BOOT_PROGRESS", "UMI_UFS_PROBE", "UMI_PMGR",
+            "XNU_NATIVE_UFS", "XNU_VERIFIED_ROOT_PROBE")}
         bootstrap_settings["XNU_EXTRA_LD_ARCHIVES"] = ""
         run("bootstrap", build, bootstrap_settings)
     if args.stage in ("all", "libraries"):
@@ -296,7 +300,8 @@ def main():
         if args.native_ufs and not args.reuse_storage_from:
             run("native-ufs", [sys.executable, str(ROOT / "tools/build_umi_native_ufs.py"),
                               "--profile", args.profile])
-            run("root-policy", [sys.executable, str(ROOT / "tools/build_umi_root_bundle.py")])
+            run("root-policy", [sys.executable, str(ROOT / "tools/build_umi_root_bundle.py"),
+                                *(["--samples",str(args.root_samples.resolve(strict=True))] if args.root_samples else [])])
         if args.owner_root != "off" and not args.reuse_storage_from:
             run("storage-providers", [sys.executable, str(ROOT / "tools/build_umi_storage_providers.py"),
                 "--snapshot", str(ROOT / "out/umi-qemu/29-aes-live-metadata/gdb-stop.json")])
