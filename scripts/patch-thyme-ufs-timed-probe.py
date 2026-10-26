@@ -23,6 +23,8 @@ def main():
     parser.add_argument('--source-sha256', required=True)
     parser.add_argument('--position', choices=('before', 'after'), required=True)
     parser.add_argument('--delay', type=int, choices=(3, 9), required=True)
+    parser.add_argument('--encode-ready-flags', action='store_true',
+                         help='after successful mode 1, encode HCS/HCE/SMMU readiness in 4-second steps')
     args = parser.parse_args()
     if args.output.exists() or args.output.resolve() == args.source.resolve():
         parser.error('output must be a new kernel copy')
@@ -79,6 +81,28 @@ def main():
   b.ne encode_result
   cbnz x11, encode_result
 '''
+        if args.encode_ready_flags:
+            body += f'''  ldr x9, =observation
+  ldr x10, [x9, #80]
+  and x10, x10, #1
+  ldr x11, [x9, #80]
+  ubfx x11, x11, #3, #1
+  lsl x11, x11, #1
+  orr x10, x10, x11
+  ldr x11, [x9, #88]
+  and x11, x11, #1
+  lsl x11, x11, #2
+  orr x10, x10, x11
+  ldr x11, [x9, #200]
+  cmp x11, #0
+  cset x11, ne
+  lsl x11, x11, #3
+  orr x10, x10, x11
+  ldr x2, ={args.delay * 19200000}
+  ldr x12, =76800000
+  madd x2, x10, x12, x2
+  b start_wait
+'''
     assembly = '.text\n.global _start\n_start:\n' + body + f'''  ldr x2, ={args.delay * 19200000}
   b start_wait
 encode_result:
@@ -125,7 +149,8 @@ park:
         'source_sha256': args.source_sha256,
         'unsealed_output_sha256': hashlib.sha256(data).hexdigest(),
         'position': args.position, 'delay_seconds': args.delay,
-        'result_delay_seconds': f'{args.delay} + stage*12 + status*2 (timer ticks at 19.2MHz)',
+        'result_delay_seconds': ('success: base + 4*ready_flags; bit0=HCS.DEVICE_PRESENT, bit1=HCS.UCRDY, bit2=HCE.ENABLE, bit3=SMMU stream count>0' if args.encode_ready_flags else f'{args.delay} + stage*12 + status*2 (timer ticks at 19.2MHz)'),
+        'encode_ready_flags': args.encode_ready_flags,
         'success_predicate': 'umi_ufs_observation[1] == 5 && umi_ufs_observation[2] == 0',
         'call_site': hex(site), 'callee': hex(callee), 'original_call_word': hex(original_word),
         'cave': hex(cave), 'code_bytes': len(code),
