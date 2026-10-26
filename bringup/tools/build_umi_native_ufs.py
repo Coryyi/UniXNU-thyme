@@ -27,6 +27,7 @@ def compile_from(record,source,obj,extra):
         i+=1
     command+=["-Wall","-Wextra","-Werror","-Wno-unused-parameter",
         "-Wno-c99-designator","-Wno-reorder-init-list","-Wno-deprecated-enum-enum-conversion",
+        "-Wno-unnecessary-virtual-specifier",
         "-mgeneral-regs-only",*extra]
     obj.with_suffix(".command.json").write_text(json.dumps(command,indent=2)+"\n")
     result=subprocess.run(command,cwd=record["directory"],text=True,capture_output=True)
@@ -47,6 +48,7 @@ def main():
                  "  static bool waitSet (uintptr_t base, unsigned offset, uint32_t mask, unsigned loops);\n"):
         assert line in header; header=header.replace(line,"")
     header=header.replace('#include "GccUfs.h"','#include <IOKit/IODeviceTreeSupport.h>')
+    header+='#include <libkern/OSKextLib.h>\n'
     header=header.replace('#include "SmmuTakeover.h"','#include "UmiSmmuTakeover.h"')
     header+='extern "C" void umi_native_ufs_checkpoint(void);\n'
     header+='extern "C" unsigned long gPhysBase, gPhysSize;\n'
@@ -89,6 +91,10 @@ bool NativeUfs::start(IOService *provider)
     return false;
   }
   gRootDiagnosticEnabled=diagnostic==1;
+  // Prelinked presence alone does not run the original storage constructors.
+  // The thyme bsd_init probes verified that normal synchronous kext loading
+  // establishes the genuine block/service metaclass relationship.
+  if (OSKextLoadKextWithIdentifier("com.apple.iokit.IOStorageFamily") != 0) return false;
   return startRoot(provider);
 }
 '''
