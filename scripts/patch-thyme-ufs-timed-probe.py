@@ -28,6 +28,7 @@ def main():
     parser.add_argument('--mode2-success-phase', type=int, choices=(15, 16), default=15,
                         help='16 also requires the Recovery first-block SHA-256 comparison')
     parser.add_argument('--skip-probe', action='store_true', help='negative control: skip the probe call and encode its untouched observation')
+    parser.add_argument('--respect-boot-args', action='store_true', help='leave the original mode parser intact to test firmware argument delivery')
     parser.add_argument('--encode-ready-flags', action='store_true',
                          help='after successful mode 1, encode HCS/HCE/SMMU readiness in 4-second steps')
     args = parser.parse_args()
@@ -64,7 +65,7 @@ def main():
     if cave % 4 or any(data[offset:offset + 512]):
         parser.error('the bounded entry padding is not empty')
     forced_mode_sites = []
-    if args.position == 'after':
+    if args.position == 'after' and not args.respect_boot_args:
         # The current DarwinBoot build supplies fixed boot args and omits
         # umi-ufs-probe. Force only the mode local in this diagnostic copy:
         # Write the actual stack local after the parser. Patching only the
@@ -185,11 +186,12 @@ park:
         'cave': hex(cave), 'code_bytes': len(code),
         'entry_and_mmu_instructions_changed': False,
         'forced_mode_sites': forced_mode_sites,
-        'forced_mode': args.force_mode,
-        'forced_mode_scope': 'after variant only; actual stack-local mode overwritten after parser; thyme identity check preserved',
+        'forced_mode': None if args.respect_boot_args else args.force_mode,
+        'respect_boot_args': args.respect_boot_args,
+        'forced_mode_scope': 'original parser intact' if args.respect_boot_args else 'after variant only; actual stack-local mode overwritten after parser; thyme identity check preserved',
         'observation_array': ('umi_ufs_read' if args.force_mode == 2 else 'umi_ufs_observation'),
         'completion_phase': (args.mode2_success_phase if args.force_mode == 2 else 5),
-        'required_args': ['umi-ufs-probe=1', 'thyme-ufs-report=0'],
+        'required_args': [f'umi-ufs-probe={args.force_mode}', 'thyme-ufs-report=0'],
         'hmac_reseal_required': True, 'hardware_tested': False,
     }
     args.output.with_suffix('.timed.json').write_text(json.dumps(report, indent=2) + '\n')
