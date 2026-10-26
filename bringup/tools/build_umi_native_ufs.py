@@ -37,6 +37,8 @@ def compile_from(record,source,obj,extra):
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--profile",choices=("qemu","phone"),required=True)
+    parser.add_argument("--ram-trace",action="store_true")
+    parser.add_argument("--boot-progress",action="store_true")
     args=parser.parse_args()
     OUT.mkdir(parents=True,exist_ok=True)
     source=(UP/"drivers/NativeUfs/NativeUfs.cpp").read_text()
@@ -76,6 +78,9 @@ static void write32(uintptr_t base,unsigned offset,uint32_t value)
                         "  native_ufs_root_failure = reason;\n  umi_native_ufs_checkpoint();")
     block=block.replace("  gPendingProvider->release ();",
                         "  umi_native_ufs_checkpoint();\n  gPendingProvider->release ();")
+    progress="      if (boot_progress_poll) boot_progress_poll ();"
+    assert block.count(progress)==1
+    block=block.replace(progress,"#if UMI_UFS_BOOT_PROGRESS\n"+progress+"\n#endif")
     block+='#include "UmiNativeUfsTrace.inc"\n'
     start=r'''
 bool NativeUfs::start(IOService *provider)
@@ -146,7 +151,9 @@ bool NativeUfs::start(IOService *provider)
         "-I",str(TREE/".cache/xnu-work/osfmk"),
         "-I",str(UP/"kits/VerifiedRoot/include"),
         "-DNATIVE_VERIFIED_BLOCK=1","-DNATIVE_VERIFIED_BLOCK_MULTI_POLICY=1",
-        "-DUMI_UFS_PHONE="+str(int(args.profile=="phone"))])
+        "-DUMI_UFS_PHONE="+str(int(args.profile=="phone")),
+        "-DUMI_UFS_RAM_TRACE="+str(int(args.ram_trace)),
+        "-DUMI_UFS_BOOT_PROGRESS="+str(int(args.boot_progress))])
     # The upstream relocation audit checks every slot of the compiled subclass.
     binding=(UP/"scripts/build-native-virtio-bindings.py").read_text()
     binding=binding.replace("ROOT = Path(__file__).resolve().parents[1]",f"ROOT = Path({str(UP)!r})")
@@ -166,6 +173,7 @@ bool NativeUfs::start(IOService *provider)
     script=OUT/"bind-storage.py"; script.write_text(binding)
     subprocess.run([sys.executable,str(script),"--directory",str(OUT)],check=True)
     report={"profile":args.profile,"disk_write_path":True,"verified_block_policies":True,
+        "ram_console_trace":args.ram_trace,"boot_progress":args.boot_progress,
         "data_store_source_sha256":sha(store_source),"data_store_generated_sha256":sha(OUT/"UmiUfsStore.inc"),
         "commands_sha256":sha(OUT/"RootCommands.h"),
         "generated_source_sha256":sha(generated),"object_sha256":sha(OUT/"NativeUfs.o"),

@@ -299,7 +299,9 @@ def main():
             report["storage_reuse"] = restore(args.reuse_storage_from, ctx.tree)
         if args.native_ufs and not args.reuse_storage_from:
             run("native-ufs", [sys.executable, str(ROOT / "tools/build_umi_native_ufs.py"),
-                              "--profile", args.profile])
+                              "--profile", args.profile,
+                              *(["--ram-trace"] if args.early_trace else []),
+                              *(["--boot-progress"] if settings.get("XNU_BOOT_PROGRESS")=="1" else [])])
             run("root-policy", [sys.executable, str(ROOT / "tools/build_umi_root_bundle.py"),
                                 *(["--samples",str(args.root_samples.resolve(strict=True))] if args.root_samples else [])])
         if args.owner_root != "off" and not args.reuse_storage_from:

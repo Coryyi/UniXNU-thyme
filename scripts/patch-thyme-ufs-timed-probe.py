@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """Install a bounded reset experiment at the UFS probe call, without entry/MMU edits.
 
-The before variant skips the UFS call. The after variant calls it normally and
-waits delay seconds if observation phase=5/status=0, otherwise delay+12 seconds.
-Use mode 1 and thyme-ufs-report=0. This emits timing evidence, not a boot success
-claim. Always compare independent challenges against the before control.
+The before variant skips the UFS call. The after variant checks the selected
+observation phase/status. Every failure includes a 12-second bias, so untouched
+phase=0/status=0 cannot alias success. The explicit skipped-call control must
+land in that failure interval. This emits timing evidence, not a boot success claim.
 """
 import argparse
 import hashlib
@@ -27,11 +27,14 @@ def main():
                         help='diagnostic copy only; bypass missing UEFI boot arg and set the probe local mode')
     parser.add_argument('--mode2-success-phase', type=int, choices=(15, 16), default=15,
                         help='16 also requires the Recovery first-block SHA-256 comparison')
+    parser.add_argument('--skip-probe', action='store_true', help='negative control: skip the probe call and encode its untouched observation')
     parser.add_argument('--encode-ready-flags', action='store_true',
                          help='after successful mode 1, encode HCS/HCE/SMMU readiness in 4-second steps')
     args = parser.parse_args()
     if args.encode_ready_flags and (args.position != 'after' or args.force_mode != 1):
         parser.error('--encode-ready-flags requires --position after --force-mode 1')
+    if args.skip_probe and args.position != 'after':
+        parser.error('--skip-probe requires --position after')
     if args.output.exists() or args.output.resolve() == args.source.resolve():
         parser.error('output must be a new kernel copy')
     data = bytearray(args.source.read_bytes())
@@ -64,23 +67,27 @@ def main():
     if args.position == 'after':
         # The current DarwinBoot build supplies fixed boot args and omits
         # umi-ufs-probe. Force only the mode local in this diagnostic copy:
-        # replace its load with mov w8,#1 and neutralize the parser-failure
-        # branch. Keep all device identity and MMIO gates in the probe intact.
+        # Write the actual stack local after the parser. Patching only the
+        # later validity-check load leaves the final mode==2 reload at zero.
+        # Keep all device identity and MMIO gates intact.
         probe_va = names['_umi_ufs_probe']
-        mode_load = probe_va + 0x68
+        mode_load = probe_va + 0x30
+        mode_store = probe_va + 0x34
         parse_guard = probe_va + 0x40
         expected_load = struct.unpack_from('<I', data, probe.file_offset(mode_load))[0]
+        expected_store = struct.unpack_from('<I', data, probe.file_offset(mode_store))[0]
         expected_guard = struct.unpack_from('<I', data, probe.file_offset(parse_guard))[0]
-        if expected_load != 0xB85CC3A8 or expected_guard != 0x540012C0:
+        if expected_load != 0xB85CC3A8 or expected_store != 0x7100001F or expected_guard != 0x540012C0:
             parser.error('UFS boot-argument prologue changed; refusing forced mode patch')
         struct.pack_into('<I', data, probe.file_offset(mode_load), 0x52800008 | (args.force_mode << 5))
+        struct.pack_into('<I', data, probe.file_offset(mode_store), 0xB81CC3A8)  # stur w8,[x29,#-0x34]
         struct.pack_into('<I', data, probe.file_offset(parse_guard), 0xD503201F)  # nop
-        forced_mode_sites = [hex(mode_load), hex(parse_guard)]
+        forced_mode_sites = [hex(mode_load), hex(mode_store), hex(parse_guard)]
     body = ''
     if args.position == 'after':
         observation = names['_umi_ufs_read'] if args.force_mode == 2 else names['_umi_ufs_observation']
         phase_success = args.mode2_success_phase if args.force_mode == 2 else 5
-        body = '''  bl callee
+        body = ('  nop\n' if args.skip_probe else '  bl callee\n') + '''
   dsb sy
   ldr x9, =observation
   ldr x10, [x9, #8]
@@ -119,16 +126,16 @@ def main():
   cset x11, ne
   ldr x12, =19200000
   madd x2, x11, x12, x2
-'''.replace('BASE_TICKS', str(args.delay * 19200000))
-        result_delay = f'{args.delay} + phase*4 + (status!=0 ? 1 : 0)'
+'''.replace('BASE_TICKS', str((args.delay + 12) * 19200000))
+        result_delay = f'failure: {args.delay + 12} + phase*4 + (status!=0 ? 1 : 0); success: {args.delay}'
     else:
-        encode_failure = f'''  ldr x2, ={args.delay * 19200000}
+        encode_failure = f'''  ldr x2, ={(args.delay + 12) * 19200000}
   ldr x12, =230400000
   madd x2, x10, x12, x2
   ldr x12, =38400000
   madd x2, x11, x12, x2
 '''
-        result_delay = ('success: base + 4*ready_flags; bit0=HCS.DEVICE_PRESENT, bit1=HCS.UCRDY, bit2=HCE.ENABLE, bit3=SMMU stream count>0' if args.encode_ready_flags else f'{args.delay} + stage*12 + status*2 (timer ticks at 19.2MHz)')
+        result_delay = ('success: base + 4*ready_flags; bit0=HCS.DEVICE_PRESENT, bit1=HCS.UCRDY, bit2=HCE.ENABLE, bit3=SMMU stream count>0; failures include a 12-second bias' if args.encode_ready_flags else f'failure: {args.delay + 12} + stage*12 + status*2; success: {args.delay} (timer ticks at 19.2MHz)')
     assembly = '.text\n.global _start\n_start:\n' + body + f'''  ldr x2, ={args.delay * 19200000}
   b start_wait
 encode_result:
@@ -170,6 +177,7 @@ park:
         'source_sha256': args.source_sha256,
         'unsealed_output_sha256': hashlib.sha256(data).hexdigest(),
         'position': args.position, 'delay_seconds': args.delay,
+        'failure_bias_seconds': 12, 'skip_probe': args.skip_probe,
         'result_delay_seconds': result_delay,
         'encode_ready_flags': args.encode_ready_flags,
         'success_predicate': f"{('umi_ufs_read' if args.force_mode == 2 else 'umi_ufs_observation')}[1] == {(args.mode2_success_phase if args.force_mode == 2 else 5)} && [2] == 0",
@@ -178,7 +186,7 @@ park:
         'entry_and_mmu_instructions_changed': False,
         'forced_mode_sites': forced_mode_sites,
         'forced_mode': args.force_mode,
-        'forced_mode_scope': 'after variant only; parser result ignored and local mode set explicitly; thyme identity check preserved',
+        'forced_mode_scope': 'after variant only; actual stack-local mode overwritten after parser; thyme identity check preserved',
         'observation_array': ('umi_ufs_read' if args.force_mode == 2 else 'umi_ufs_observation'),
         'completion_phase': (args.mode2_success_phase if args.force_mode == 2 else 5),
         'required_args': ['umi-ufs-probe=1', 'thyme-ufs-report=0'],

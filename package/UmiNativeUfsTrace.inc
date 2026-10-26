@@ -2,7 +2,7 @@
 // Persist the real provider's software state using the existing RAM journal.
 extern "C" {
 volatile uint64_t umi_native_ufs_observation[32];
-#if UMI_UFS_PHONE
+#if UMI_UFS_PHONE && UMI_UFS_RAM_TRACE
 void umi_early_trace(uint64_t,uint64_t,uint64_t);
 extern uint64_t umi_trace_console_address;
 #endif
@@ -27,7 +27,7 @@ __attribute__((noinline)) void umi_native_ufs_checkpoint(void)
   uint64_t ticks;
   __asm__ volatile("isb\n\tmrs %0,cntpct_el0":"=r"(ticks));
   r[31]=ticks;
-#if UMI_UFS_PHONE
+#if UMI_UFS_PHONE && UMI_UFS_RAM_TRACE
   uint64_t daif;
   __asm__ volatile("mrs %0,daif\n\tmsr daifset,#3":"=r"(daif)::"memory");
   if (umi_trace_console_address)
